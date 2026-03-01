@@ -19,6 +19,7 @@ services:
     depends_on:
       - mohe-frontend
       - mohe-admin
+      - mohe-store
 
   # React Frontend
   mohe-frontend:
@@ -40,6 +41,20 @@ services:
       context: ../MoheAdmin
       dockerfile: Dockerfile
     container_name: mohe-admin-app
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - mohe-network
+    expose:
+      - "80"
+
+  # Store (LayerLab)
+  mohe-store:
+    build:
+      context: ../MoheStore
+      dockerfile: Dockerfile
+    container_name: mohe-store-app
     environment:
       - NODE_ENV=production
     restart: unless-stopped

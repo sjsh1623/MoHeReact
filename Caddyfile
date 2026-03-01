@@ -29,6 +29,11 @@ mohe.today {
 		reverse_proxy mohe-admin-app:80
 	}
 
+	# Store (LayerLab) - proxy to MoheStore React app
+	handle_path /store* {
+		reverse_proxy mohe-store-app:80
+	}
+
 	# Rewrite /images/* to /image/* for ImageProcessor compatibility
 	@images_path path_regexp images ^/images/(.*)$
 	rewrite @images_path /image/{re.images.1}
