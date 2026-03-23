@@ -345,6 +345,7 @@ function getGeolocationErrorMessage(errorCode) {
 
 /**
  * Hook for reverse geocoding (address from coordinates)
+ * Vworld API (국토부) 를 통해 좌표 → 행정구역 주소 변환
  */
 export const useReverseGeocoding = () => {
   const [loading, setLoading] = useState(false);
@@ -355,24 +356,32 @@ export const useReverseGeocoding = () => {
     setError(null);
 
     try {
-      // Using browser's built-in reverse geocoding (if available)
-      // In production, you might want to use a more reliable service
-      if ('geolocation' in navigator && 'reverseGeocode' in navigator.geolocation) {
-        // This is a hypothetical API, browsers don't typically have this
-        // You would use a service like Google Maps Geocoding API or Kakao Maps API
-        const response = await navigator.geolocation.reverseGeocode(latitude, longitude);
-        setLoading(false);
-        return response.address;
+      const response = await fetch(
+        `/api/location/reverse-geocode?lat=${latitude}&lng=${longitude}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
 
-      // Fallback: Use a free geocoding service or return formatted coordinates
+      const json = await response.json();
+
+      if (json.success && json.data && !json.data.isEmpty) {
+        setLoading(false);
+        return {
+          sido: json.data.sido,
+          sigungu: json.data.sigungu,
+          dong: json.data.dong,
+          fullAddress: json.data.fullAddress,
+        };
+      }
+
       setLoading(false);
-      return `위도 ${latitude.toFixed(4)}, 경도 ${longitude.toFixed(4)}`;
-      
+      return null;
     } catch (err) {
       setError({
         code: 'REVERSE_GEOCODING_FAILED',
-        message: '주소를 가져오는데 실패했습니다.'
+        message: '주소를 가져오는데 실패했습니다.',
       });
       setLoading(false);
       return null;
@@ -382,7 +391,7 @@ export const useReverseGeocoding = () => {
   return {
     getAddressFromCoordinates,
     loading,
-    error
+    error,
   };
 };
 

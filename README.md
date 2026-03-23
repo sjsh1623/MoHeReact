@@ -1,135 +1,110 @@
-# MoHe - 장소 추천 서비스 프론트엔드
+# MoheReact
 
-React 기반 장소 추천 모바일 웹 애플리케이션입니다.
+> Mohe 장소 추천 서비스 프론트엔드 (React 모바일 웹앱)
 
 ## 기술 스택
 
-- **Frontend**: React 19.1.0 with Vite 7.0.4
-- **Routing**: React Router DOM 7.7.1
-- **Animations**: Framer Motion 12.23.12 + React Transition Group 4.4.5
+- **Frontend**: React 19.1.0, Vite 7.0.4
+- **Routing**: React Router DOM 7.7.1 (AnimatedRoutes)
+- **Animations**: Framer Motion 12.23.12 + React Transition Group
 - **Styling**: CSS Modules
-- **State Management**: React Context API
-- **Mobile**: Capacitor 7.4.4 (iOS/Android)
+- **State**: React Context (UserPreferencesContext)
+- **Mobile**: Capacitor 7.4.4 (iOS/Android 네이티브)
 
 ## 시작하기
 
-### 설치
-
 ```bash
 npm install
+npm run dev      # 개발 서버 (http://localhost:3000)
+npm run build    # 프로덕션 빌드
+npm run preview  # 빌드 미리보기
+npm run lint     # ESLint 실행
 ```
 
-### 개발 서버 실행
+## 웹 페이지 URL (라우트)
 
-**로컬 환경:**
-```bash
-npm run dev
+### 인증 & 회원가입
+
+| Path | 컴포넌트 | 설명 |
+|------|---------|------|
+| `/` | AuthPage | 랜딩 페이지 |
+| `/login` | LoginPage | 로그인 |
+| `/forgot-password` | ForgotPasswordPage | 비밀번호 찾기 |
+| `/signup` | EmailSignupPage | 이메일 회원가입 |
+| `/verify-email` | EmailVerificationPage | 이메일 인증 (OTP) |
+| `/nickname-setup` | NicknameSetupPage | 닉네임 설정 |
+| `/terms` | TermsAgreementPage | 약관 동의 |
+| `/password-setup` | PasswordSetupPage | 비밀번호 설정 |
+| `/oauth/:provider/callback` | OAuthCallbackPage | 소셜 로그인 콜백 |
+
+### 온보딩 (선호도 설정)
+
+| Path | 컴포넌트 | 설명 |
+|------|---------|------|
+| `/age-range` | AgeRangeSelectionPage | 나이대 선택 |
+| `/mbti-selection` | MBTISelectionPage | MBTI 성격 평가 |
+| `/space-preference` | SpacePreferenceSelectionPage | 공간 유형 선호 |
+| `/transportation-selection` | TransportationSelectionPage | 교통수단 선택 |
+
+### 메인 앱
+
+| Path | 컴포넌트 | 설명 |
+|------|---------|------|
+| `/hello` | HelloPage | 환영 페이지 |
+| `/home` | HomePage | 홈 (추천 피드) |
+| `/profile-settings` | ProfileSettingsPage | 프로필 설정 |
+| `/profile-edit` | ProfileEditPage | 프로필 수정 |
+| `/mbti-edit` | MBTIEditPage | MBTI 수정 |
+| `/bookmarks` | BookmarksPage | 북마크 목록 |
+| `/my-places` | MyPlacesPage | 내 등록 장소 |
+| `/recent-view` | RecentViewPage | 최근 본 장소 |
+
+### 장소 탐색
+
+| Path | 컴포넌트 | 설명 |
+|------|---------|------|
+| `/places` | PlacesListPage | 장소 목록 |
+| `/search-results` | SearchResultsPage | 검색 결과 |
+| `/place/:id` | PlaceDetailPage | 장소 상세 |
+| `/place/:id/menu` | MenuListPage | 메뉴 목록 |
+| `/place/:id/review/write` | WriteReviewPage | 리뷰 작성 |
+
+### 테스트
+
+| Path | 컴포넌트 | 설명 |
+|------|---------|------|
+| `/image-test` | ImageTestPage | 이미지 처리 테스트 |
+| `/location-test` | LocationTestPage | 위치 서비스 테스트 |
+
+## 핵심 기능
+
+### 위치 기반 서비스
+- **Capacitor Geolocation**: 네이티브 GPS 좌표 획득
+- **역지오코딩**: Vworld API를 통한 좌표→주소 변환 (`useReverseGeocoding` 훅)
+- **사용자 위치 등록**: 접속 시 40km 반경 크롤링 우선순위 자동 등록
+
+### 애니메이션 시스템
+- 라우트 계층 기반 방향성 슬라이드 전환 (forward/backward)
+- 스크롤 위치 보존
+- 스와이프 뒤로가기 제스처 (모바일)
+
+### 사용자 흐름
+```
+랜딩 → 로그인/가입 → 이메일 인증 → 선호도 설정
+  → 홈 (추천) → 장소 목록 → 장소 상세 → 프로필
 ```
 
-개발 서버는 http://localhost:3000 에서 실행됩니다.
+## Docker / Caddy
 
-**Docker 개발 환경 (Hot Reload 지원):**
-
-포그라운드 실행 (로그 확인):
-```bash
-docker-compose -f docker-compose.dev.yml up
-```
-
-백그라운드 실행:
-```bash
-docker-compose -f docker-compose.dev.yml up -d
-```
-
-Docker를 사용하면 볼륨 마운트를 통해 소스 코드 수정사항이 실시간으로 반영됩니다. 개발 서버는 http://localhost:3000 에서 접속할 수 있습니다.
-
-로그 확인:
-```bash
-docker-compose -f docker-compose.dev.yml logs -f
-```
-
-중지:
-```bash
-docker-compose -f docker-compose.dev.yml down
-```
-
-### 프로덕션 빌드
-
-**로컬 환경:**
-```bash
-npm run build
-```
-
-**Docker 프로덕션 환경:**
-```bash
-docker-compose up --build
-```
-
-프로덕션 환경은 Nginx로 빌드된 정적 파일을 서빙하며 http://localhost:3002 에서 접속할 수 있습니다.
-
-### 프로덕션 미리보기
-
-```bash
-npm run preview
-```
-
-### 린트 검사
-
-```bash
-npm run lint
-```
-
-## 모바일 앱 빌드 (iOS/Android)
-
-이 프로젝트는 Capacitor를 사용하여 iOS 및 Android 네이티브 앱으로 빌드할 수 있습니다.
-
-**📱 상세한 모바일 빌드 및 실행 가이드는 [MOBILE_BUILD.md](./MOBILE_BUILD.md)를 참조하세요.**
-
-### 빠른 시작
-
-```bash
-# 1. 웹 앱 빌드 및 동기화
-npm run cap:build
-
-# 2. iOS 실행 (macOS만 가능)
-npm run cap:ios
-# Xcode에서 시뮬레이터 선택 후 Cmd+R로 실행
-
-# 3. Android 실행
-npm run cap:android
-# Android Studio에서 에뮬레이터 선택 후 실행 버튼 클릭
-```
-
-### 사전 요구사항
-
-- **iOS**: macOS, Xcode, CocoaPods
-- **Android**: Android Studio, JDK 17+
-
-자세한 설치 방법과 문제 해결은 [MOBILE_BUILD.md](./MOBILE_BUILD.md) 참조
-
-## 주요 기능
-
-- 사용자 인증 및 이메일 인증
-- MBTI 기반 성격 평가
-- 사용자 선호도 수집 (연령, 공간 유형, 교통수단)
-- 장소 추천 시스템
-- 북마크 기능
-- 프로필 관리
-- Skeleton UI로 향상된 로딩 경험
-
-## 프로젝트 구조
+프로덕션 환경에서 Caddy 리버스 프록시 뒤에서 동작합니다:
 
 ```
-src/
-├── components/         # 재사용 가능한 UI 컴포넌트
-│   ├── ui/            # 기본 UI 컴포넌트 (버튼, 카드, 입력 등)
-│   ├── layout/        # 레이아웃 컴포넌트
-│   └── auth/          # 인증 관련 컴포넌트
-├── pages/             # 페이지 컴포넌트
-├── contexts/          # React Context 상태 관리
-├── styles/            # CSS 모듈
-└── assets/            # 이미지 및 정적 파일
+https://mohe.app/*           → mohe-react-app:80 (기본)
+https://mohe.app/api/*       → spring:8080
+https://mohe.app/admin/*     → mohe-admin-app:80
+https://mohe.app/image/*     → moheimageprocessor-app-1:5200
 ```
 
-## 개발 가이드
+## 작성자
 
-자세한 개발 가이드는 [CLAUDE.md](./CLAUDE.md)를 참조하세요.
+**Andrew Lim (임석현)** - sjsh1623@gmail.com

@@ -193,6 +193,9 @@ export default function HomePage() {
               typeof locationData.longitude === 'number' &&
               isMounted) {
             setCurrentLocation(locationData);
+            // 사용자 위치 기반 크롤링 우선순위 등록 (비동기, 결과 무시)
+            fetch(`/api/location/register-user-area?lat=${locationData.latitude}&lng=${locationData.longitude}`, { method: 'POST' })
+              .catch(() => {});
             // Resolve address for the location
             await resolveAddress(locationData.latitude, locationData.longitude);
             await loadWeatherData(locationData.latitude, locationData.longitude);
