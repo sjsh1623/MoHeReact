@@ -1828,7 +1828,60 @@ export default function HomePage() {
     return unique;
   };
 
-  const [fixedCategories] = useState(() => getTimeBasedSortedCategories());
+  const [fixedCategories, setFixedCategories] = useState(() => getTimeBasedSortedCategories());
+  const [mbtiRow, setMbtiRow] = useState(null);
+
+  // Fetch backend category order + MBTI row
+  useEffect(() => {
+    const fetchHomeCategories = async () => {
+      if (!currentLocation) return;
+      try {
+        const user = authService.getUser();
+        const mbti = user?.mbti || null;
+        const response = await categoryService.getHomeCategories(
+          currentLocation.latitude, currentLocation.longitude, mbti
+        );
+        if (response?.data) {
+          const data = response.data;
+
+          // MBTI 첫줄
+          if (data.mbtiRow) {
+            setMbtiRow(data.mbtiRow);
+          }
+
+          // 백엔드 카테고리 순서로 재정렬 (타이틀은 기존 프론트 것 유지)
+          if (data.categoryRows) {
+            const backendOrder = data.categoryRows.map(r => r.key);
+            const baseCats = getTimeBasedSortedCategories();
+            const catMap = {};
+            baseCats.forEach(c => { catMap[c.key] = c; });
+
+            // 백엔드 순서 우선 + 나머지
+            const ordered = [];
+            const seen = new Set();
+            backendOrder.forEach(key => {
+              if (catMap[key] && !seen.has(key)) {
+                ordered.push(catMap[key]);
+                seen.add(key);
+              }
+            });
+            baseCats.forEach(c => {
+              if (!seen.has(c.key)) {
+                ordered.push(c);
+                seen.add(c.key);
+              }
+            });
+
+            setFixedCategories(ordered);
+          }
+        }
+      } catch (e) {
+        // 실패해도 기존 프론트 정렬 유지
+        console.debug('Home categories API failed, using client-side sorting');
+      }
+    };
+    fetchHomeCategories();
+  }, [currentLocation]);
 
   // Lazy loading state for categories
   const INITIAL_CATEGORIES_COUNT = 10; // Load 10 categories initially for better UX
@@ -2409,6 +2462,25 @@ export default function HomePage() {
               user && user.id && user.id !== 'guest' ? '당신을 위한 추천' : '지금 이 시간 추천',
               homeImages,
               { sectionKey: 'time-recommendations' }
+            )
+          )}
+
+          {/* MBTI-based Row (logged in users only) */}
+          {mbtiRow && mbtiRow.places && mbtiRow.places.length > 0 && (
+            renderPlacesSection(
+              mbtiRow.title,
+              mbtiRow.places.map(p => ({
+                id: p.id,
+                name: p.name,
+                rating: p.rating,
+                roadAddress: p.roadAddress,
+                formattedAddress: p.roadAddress ? formatPlaceAddress(p.roadAddress) : '',
+                distance: p.distance,
+                primaryImageUrl: p.imageUrl ? buildImageUrl(p.imageUrl) : null,
+                images: p.imageUrl ? [{ url: buildImageUrl(p.imageUrl) }] : [],
+                category: p.category,
+              })),
+              { sectionKey: 'mbti-recommendations' }
             )
           )}
 

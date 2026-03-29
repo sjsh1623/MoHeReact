@@ -967,6 +967,22 @@ export class CategoryService extends ApiService {
    * @param {number} longitude - User's longitude
    * @param {object} options - Additional options (limit, etc.)
    */
+  /**
+   * Get home categories with MBTI + time/weather based ordering
+   */
+  async getHomeCategories(latitude, longitude, mbti = null) {
+    const params = new URLSearchParams({
+      lat: latitude.toString(),
+      lon: longitude.toString(),
+      placesPerCategory: '10'
+    });
+    if (mbti) params.set('mbti', mbti);
+
+    return this.get(`/api/categories/home?${params}`, {
+      requireAuth: false
+    });
+  }
+
   async getPlacesByCategory(category, latitude, longitude, options = {}) {
     const params = new URLSearchParams({
       lat: latitude.toString(),
