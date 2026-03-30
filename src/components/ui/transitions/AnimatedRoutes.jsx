@@ -63,7 +63,7 @@ const ROUTE_HIERARCHY = {
   '/place': 15,
   '/menu': 16,
   '/review/write': 17,
-  '/image-test': 18
+  '/image-test': 18,
 };
 
 // Routes that only render standalone auth/onboarding screens.
@@ -83,7 +83,7 @@ const NO_SWIPE_BACK_ROUTES = new Set([
   '/',
   '/login',
   '/home',
-  '/hello'
+  '/hello',
 ]);
 
 export default function AnimatedRoutes() {

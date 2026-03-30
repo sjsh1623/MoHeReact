@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from '@/styles/components/ui/modals/menu-fullscreen-modal.module.css';
 import { buildImageUrl } from '@/utils/image';
@@ -92,13 +93,11 @@ export default function MenuFullscreenModal({
     }
   };
 
-  if (!isOpen || menus.length === 0) return null;
+  const currentMenu = menus[currentIndex] || null;
 
-  const currentMenu = menus[currentIndex];
-
-  return (
+  return createPortal(
     <AnimatePresence>
-      {isOpen && (
+      {isOpen && currentMenu && (
         <motion.div
           className={styles.overlay}
           initial={{ opacity: 0 }}
@@ -181,6 +180,7 @@ export default function MenuFullscreenModal({
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

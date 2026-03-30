@@ -744,29 +744,23 @@ export default function PlaceDetailPage({ place = null }) {
         portalContainer
       )}
 
-      {/* Menu Modal - rendered via portal to escape stacking context */}
-      {portalContainer && createPortal(
-        <MenuFullscreenModal
-          isOpen={isMenuModalOpen}
-          onClose={() => setIsMenuModalOpen(false)}
-          menus={menus.filter(m => m.imagePath)}
-          initialIndex={selectedMenuIndex}
-        />,
-        portalContainer
-      )}
+      {/* Menu Modal */}
+      <MenuFullscreenModal
+        isOpen={isMenuModalOpen}
+        onClose={() => setIsMenuModalOpen(false)}
+        menus={menus.filter(m => m.imagePath)}
+        initialIndex={selectedMenuIndex}
+      />
 
       {/* Share Modal */}
-      {portalContainer && createPortal(
-        <ShareModal
-          isOpen={isShareModalOpen}
-          onClose={() => setIsShareModalOpen(false)}
-          title={placeData?.name || placeData?.title || 'Mohe'}
-          description={`${placeData?.name || placeData?.title} - Mohe에서 발견한 장소`}
-          url={window.location.href}
-          imageUrl={images[0]}
-        />,
-        portalContainer
-      )}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title={placeData?.name || placeData?.title || 'Mohe'}
+        description={`${placeData?.name || placeData?.title} - Mohe에서 발견한 장소`}
+        url={window.location.href}
+        imageUrl={images[0]}
+      />
     </div>
   );
 }

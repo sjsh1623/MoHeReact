@@ -24,14 +24,24 @@ mohe.today {
 		reverse_proxy mohe-batch:8081
 	}
 
+	# Store API — proxy to Spring Boot (before /store* catch-all)
+	handle /store/api/* {
+		reverse_proxy store-spring:8080
+	}
+
+	# Store Admin — proxy to store-admin React app (before /admin/* catch-all)
+	handle_path /admin/store* {
+		reverse_proxy store-admin:80
+	}
+
 	# Admin Dashboard - proxy to MoheAdmin React app
 	handle /admin/* {
 		reverse_proxy mohe-admin-app:80
 	}
 
-	# Store (LayerLab) - proxy to MoheStore React app
+	# Store (LayerLab) - proxy to store-user React app
 	handle_path /store* {
-		reverse_proxy mohe-store-app:80
+		reverse_proxy store-user:80
 	}
 
 	# Rewrite /images/* to /image/* for ImageProcessor compatibility

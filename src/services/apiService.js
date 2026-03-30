@@ -1086,6 +1086,35 @@ export class UnifiedSearchService extends ApiService {
 }
 
 /**
+ * Search Chat API - 대화형 검색 + DB 히스토리
+ */
+export class SearchChatService extends ApiService {
+  async searchChat(query, latitude, longitude, options = {}) {
+    return this.post('/api/search/chat', {
+      query,
+      latitude,
+      longitude,
+      conversationId: options.conversationId || null,
+      sessionId: options.sessionId || null,
+      limit: options.limit || 10
+    }, { requireAuth: false });
+  }
+
+  async getConversations(sessionId = null) {
+    const params = sessionId ? `?sessionId=${sessionId}` : '';
+    return this.get(`/api/search/chat/conversations${params}`, { requireAuth: false });
+  }
+
+  async getConversation(id) {
+    return this.get(`/api/search/chat/conversations/${id}`, { requireAuth: false });
+  }
+
+  async deleteConversation(id) {
+    return this.delete(`/api/search/chat/conversations/${id}`, { requireAuth: false });
+  }
+}
+
+/**
  * Review API service for user-generated reviews
  * Uses the existing Comment API endpoints
  */
@@ -1149,5 +1178,6 @@ export const homeService = new HomeService();
 export const categoryService = new CategoryService();
 export const reviewService = new ReviewService();
 export const unifiedSearchService = new UnifiedSearchService();
+export const searchChatService = new SearchChatService();
 
 export default ApiService;

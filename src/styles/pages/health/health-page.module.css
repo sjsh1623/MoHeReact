@@ -1,0 +1,651 @@
+/* ================================================================
+   굿바이톡스 — 제품 상세 홍보페이지
+   global.css 영향 완전 차단, 자체 완결형 스타일
+   ================================================================ */
+
+/* ── 페이지 루트: 앱 global.css 재정의 ────────────────────────── */
+.page {
+  all: initial;
+  display: block;
+  width: 100%;
+  max-width: 750px;
+  margin: 0 auto;
+  background: #ffffff;
+  font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR',
+               'Malgun Gothic', 'Segoe UI', Arial, sans-serif !important;
+  font-size: 16px !important;
+  line-height: 1.5;
+  color: #1a1a1a;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.page *, .page *::before, .page *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
+}
+
+/* ════════════════════════════════════════════
+   HERO
+════════════════════════════════════════════ */
+.hero {
+  display: block;
+  background: linear-gradient(160deg, #041f10 0%, #073d1f 35%, #0b5c2d 65%, #137a3c 100%);
+  padding: 64px 32px 56px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.heroGlow1 {
+  display: block;
+  position: absolute;
+  top: -100px; right: -100px;
+  width: 400px; height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(60,200,118,0.13) 0%, transparent 65%);
+  pointer-events: none;
+}
+.heroGlow2 {
+  display: block;
+  position: absolute;
+  bottom: -80px; left: -80px;
+  width: 300px; height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(60,200,118,0.10) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(60,200,118,0.18);
+  border: 1px solid rgba(60,200,118,0.40);
+  border-radius: 100px;
+  padding: 8px 22px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7fffc4;
+  margin-bottom: 40px;
+}
+.heroBadgeDot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #3cc876;
+}
+
+/* 제품 이미지 */
+.heroImgWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 40px;
+  width: 220px; height: 220px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(60,200,118,0.30);
+  position: relative;
+  overflow: hidden;
+}
+.heroImgWrap::before {
+  content: '';
+  display: block;
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 1px dashed rgba(60,200,118,0.22);
+  pointer-events: none;
+}
+.heroImgWrap img {
+  display: block;
+  width: 200px; height: 200px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.heroEn {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: rgba(127,255,196,0.60);
+  margin-bottom: 12px;
+}
+.heroName {
+  display: block;
+  font-size: 56px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 18px;
+}
+.heroNameEm { color: #7fffc4; }
+
+.heroDesc {
+  display: block;
+  font-size: 17px;
+  color: rgba(255,255,255,0.68);
+  line-height: 1.75;
+  margin: 0 auto 40px;
+  max-width: 400px;
+}
+
+.heroPills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.heroPill {
+  display: inline-block;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.20);
+  border-radius: 100px;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+}
+
+/* ── 요약 바 ────────────────────────────────────────────────────── */
+.summaryBar {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: #3cc876;
+  padding: 22px 32px;
+}
+.summaryIcon { display: block; font-size: 28px; flex-shrink: 0; margin-top: 2px; }
+.summaryTextWrap { display: block; }
+.summaryStrong {
+  display: block;
+  font-size: 18px;
+  font-weight: 900;
+  color: #ffffff;
+  margin-bottom: 5px;
+}
+.summarySub {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.6;
+}
+
+/* ════════════════════════════════════════════
+   SECTION 공통
+════════════════════════════════════════════ */
+.sec     { display: block; padding: 60px 40px; background: #ffffff; }
+.secAlt  { display: block; padding: 60px 40px; background: #f0faf5; }
+.secDark { display: block; padding: 60px 40px; background: #041f10; }
+.secNoPad{ display: block; background: #ffffff; }
+.secNoPadAlt { display: block; background: #f0faf5; }
+
+.secInner { display: block; padding: 44px 40px; }
+.secInnerBottom { display: block; padding: 0 40px 60px; }
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #1a7a45;
+  margin-bottom: 14px;
+}
+.labelLight {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7fffc4;
+  margin-bottom: 14px;
+}
+.labelLine {
+  display: inline-block;
+  width: 24px; height: 2.5px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+.h2 {
+  display: block;
+  font-size: 34px;
+  font-weight: 900;
+  color: #041f10;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  margin-bottom: 14px;
+}
+.h2Light {
+  display: block;
+  font-size: 34px;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  margin-bottom: 14px;
+}
+.h3 {
+  display: block;
+  font-size: 22px;
+  font-weight: 900;
+  color: #041f10;
+  line-height: 1.3;
+  margin-bottom: 12px;
+}
+
+.body {
+  display: block;
+  font-size: 16px;
+  color: #555555;
+  line-height: 1.80;
+}
+.bodyLight {
+  display: block;
+  font-size: 16px;
+  color: rgba(255,255,255,0.62);
+  line-height: 1.80;
+}
+
+/* ════════════════════════════════════════════
+   DIVIDER
+════════════════════════════════════════════ */
+.div { display: block; height: 12px; background: #ebebeb; }
+
+/* ════════════════════════════════════════════
+   BENEFIT GRID 2×2
+════════════════════════════════════════════ */
+.benefitGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 32px;
+}
+.benefitCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #ffffff;
+  border: 1.5px solid #c0e8d0;
+  border-radius: 20px;
+  padding: 26px 20px;
+}
+.benefitIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #d8f5e5, #b0e8c8);
+  font-size: 26px;
+}
+.benefitNum {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3cc876;
+}
+.benefitTitle {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  color: #041f10;
+  line-height: 1.3;
+}
+.benefitDesc {
+  display: block;
+  font-size: 14px;
+  color: #666;
+  line-height: 1.65;
+}
+
+/* ════════════════════════════════════════════
+   INGREDIENT LIST
+════════════════════════════════════════════ */
+.ingList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 32px;
+}
+.ingCard {
+  display: flex;
+  align-items: stretch;
+  background: #ffffff;
+  border: 1px solid #d8edd8;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+.ingStripe { display: block; width: 7px; flex-shrink: 0; }
+.ingBody {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px 22px 22px 18px;
+  flex: 1;
+}
+.ingEmoji { display: block; font-size: 38px; flex-shrink: 0; }
+.ingName  { display: block; font-size: 20px; font-weight: 800; color: #041f10; margin-bottom: 4px; }
+.ingSub   { display: block; font-size: 12px; color: #999; font-weight: 500; margin-bottom: 10px; }
+.ingTags  { display: flex; flex-wrap: wrap; gap: 6px; }
+.ingTag {
+  display: inline-block;
+  background: #ecf9f1;
+  border: 1px solid #b8dfc4;
+  border-radius: 100px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a7a45;
+}
+
+/* ════════════════════════════════════════════
+   FULL-WIDTH IMAGE + OVERLAY
+════════════════════════════════════════════ */
+.imgBanner {
+  display: block;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+.imgBanner img {
+  display: block;
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+}
+.imgBannerOverlay {
+  display: block;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(4,31,16,0.25) 0%, rgba(4,31,16,0.78) 100%);
+  padding: 0 40px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.imgBannerTitle {
+  display: block;
+  font-size: 28px;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+.imgBannerDesc {
+  display: block;
+  font-size: 16px;
+  color: rgba(255,255,255,0.80);
+  line-height: 1.65;
+}
+
+/* ════════════════════════════════════════════
+   FEATURE BLOCK (차전자피)
+════════════════════════════════════════════ */
+.featureBox {
+  display: block;
+  margin-top: 32px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid #c0e8d0;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+}
+.featureImg {
+  display: block;
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+}
+.featureImgFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%; height: 280px;
+  background: linear-gradient(135deg, #073d1f, #3cc876);
+  font-size: 80px;
+}
+.featureBody { display: block; padding: 30px 28px 32px; }
+.featureTag {
+  display: inline-block;
+  background: #ecf9f1;
+  color: #1a7a45;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 100px;
+  padding: 5px 16px;
+  margin-bottom: 16px;
+  letter-spacing: 0.05em;
+}
+.featureDesc {
+  display: block;
+  font-size: 15px;
+  color: #555;
+  line-height: 1.80;
+  margin-bottom: 22px;
+}
+
+/* 메커니즘 플로우 */
+.mechBox {
+  display: block;
+  background: #f0faf5;
+  border-radius: 16px;
+  padding: 22px 20px;
+}
+.mechStep {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mechDot {
+  display: block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #1a7a45;
+  flex-shrink: 0;
+}
+.mechText {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: #041f10;
+}
+.mechArrow {
+  display: block;
+  padding: 4px 0 4px 20px;
+  font-size: 13px;
+  color: #3cc876;
+  font-weight: 700;
+}
+
+/* ════════════════════════════════════════════
+   MINI GRID 2×2 (미강)
+════════════════════════════════════════════ */
+.miniGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 28px;
+}
+.miniCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #d8edd8;
+  border-radius: 18px;
+  padding: 24px 18px;
+}
+.miniIcon  { display: block; font-size: 32px; }
+.miniTitle { display: block; font-size: 17px; font-weight: 800; color: #041f10; }
+.miniDesc  { display: block; font-size: 14px; color: #666; line-height: 1.60; }
+
+/* ════════════════════════════════════════════
+   GRAIN GRID 2×2 (곡물)
+════════════════════════════════════════════ */
+.grainGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 28px;
+}
+.grainCard {
+  display: block;
+  background: #ffffff;
+  border: 1px solid #d8edd8;
+  border-radius: 18px;
+  overflow: hidden;
+  text-align: center;
+}
+.grainImg {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+.grainImgFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%; height: 140px;
+  background: linear-gradient(135deg, #d8f5e5, #b0e8c8);
+  font-size: 48px;
+}
+.grainInfo { display: block; padding: 16px 12px 20px; }
+.grainName    { display: block; font-size: 18px; font-weight: 800; color: #041f10; margin-bottom: 4px; }
+.grainBenefit { display: block; font-size: 13px; color: #666; }
+
+/* ════════════════════════════════════════════
+   PROBIOTIC SECTION
+════════════════════════════════════════════ */
+.proCount    { display: block; font-size: 88px; font-weight: 900; color: #3cc876; letter-spacing: -0.05em; line-height: 1; margin-bottom: 6px; }
+.proCountSub { display: block; font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.72); margin-bottom: 28px; }
+
+.proList { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; }
+.proItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(60,200,118,0.20);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+.proBullet { display: block; width: 8px; height: 8px; border-radius: 50%; background: #3cc876; flex-shrink: 0; }
+.proName   { display: block; font-size: 16px; font-weight: 700; color: #ffffff; flex: 1; }
+.proDetail { display: block; font-size: 13px; color: rgba(255,255,255,0.48); }
+
+/* ════════════════════════════════════════════
+   FLOW DIAGRAM (작용 원리)
+════════════════════════════════════════════ */
+.flowList { display: flex; flex-direction: column; margin-top: 32px; }
+.flowItem {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #ffffff;
+  border: 1.5px solid #c0e8d0;
+  border-radius: 16px;
+  padding: 22px 24px;
+}
+.flowNum {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1a7a45, #3cc876);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 900;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(60,200,118,0.35);
+}
+.flowTitle { display: block; font-size: 17px; font-weight: 800; color: #041f10; margin-bottom: 4px; }
+.flowDesc  { display: block; font-size: 14px; color: #666; }
+
+.flowConnector {
+  display: flex;
+  align-items: center;
+  padding-left: 52px; /* 42px num + 10px gap */
+  height: 28px;
+}
+.flowConnectorLine {
+  display: block;
+  width: 2px; height: 28px;
+  background: linear-gradient(to bottom, #3cc876, #c0e8d0);
+  border-radius: 1px;
+}
+
+/* ════════════════════════════════════════════
+   HOW TO USE
+════════════════════════════════════════════ */
+.howList { display: flex; flex-direction: column; gap: 14px; margin-top: 32px; }
+.howItem {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px 24px;
+  border-left: 6px solid #3cc876;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+.howEmoji { display: block; font-size: 30px; flex-shrink: 0; }
+.howTitle { display: block; font-size: 18px; font-weight: 800; color: #041f10; margin-bottom: 5px; }
+.howSub   { display: block; font-size: 14px; color: #777; }
+
+/* ════════════════════════════════════════════
+   CAUTION
+════════════════════════════════════════════ */
+.cautionList { display: flex; flex-direction: column; gap: 12px; margin-top: 28px; }
+.cautionItem {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  background: #fffbf0;
+  border: 1px solid #ffd88a;
+  border-radius: 16px;
+  padding: 20px 22px;
+}
+.cautionIcon  { display: block; font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+.cautionTitle { display: block; font-size: 17px; font-weight: 800; color: #7a4e00; margin-bottom: 6px; }
+.cautionDesc  { display: block; font-size: 14px; color: #a06800; line-height: 1.65; }
+
+/* ════════════════════════════════════════════
+   PRODUCT INFO TABLE
+════════════════════════════════════════════ */
+.infoTable {
+  display: block;
+  background: #f7f7f7;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 28px;
+}
+.infoRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #ebebeb;
+}
+.infoRow:last-child { border-bottom: none; }
+.infoKey { display: block; font-size: 14px; font-weight: 700; color: #888; flex-shrink: 0; min-width: 100px; padding-top: 2px; }
+.infoVal { display: block; font-size: 15px; color: #333; line-height: 1.65; }

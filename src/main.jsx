@@ -1,46 +1,72 @@
-import {createRoot} from 'react-dom/client'
+import { createRoot } from 'react-dom/client'
 import '@/styles/global.css'
-import '@/i18n'; // i18n 초기화
-import AnimatedRoutes from '@/components/ui/transitions/AnimatedRoutes.jsx';
 import React from 'react';
-import {BrowserRouter} from 'react-router-dom';
-import {AuthProvider, UserPreferencesProvider} from '@/contexts';
-import { BackButtonProvider } from '@/contexts/BackButtonContext';
-import GlobalBackButtonWrapper from '@/components/ui/layout/GlobalBackButtonWrapper';
-import GlobalFloatingButton from '@/components/ui/layout/GlobalFloatingButton';
-import GlobalMessageInput from '@/components/ui/layout/GlobalMessageInput';
-import { AppShell } from '@/components/ui/layout';
-import { initializeWebViewOptimizations } from '@/utils/webviewOptimizations';
-import { initializeVersionCheck } from '@/utils/versionCheck';
-import ErrorBoundary from '@/components/ErrorBoundary';
 
+const path = window.location.pathname;
 
-// Initialize WebView optimizations
-initializeWebViewOptimizations();
+// ── Standalone product pages — completely isolated ───────────────
+if (path.startsWith('/goodbyetox')) {
+    const root = createRoot(document.getElementById('root'));
 
-// Initialize version check for cache busting
-initializeVersionCheck();
+    if (path === '/goodbyetox/ko') {
+        import('@/pages/health/HealthKoPage.jsx').then(({ default: Page }) => {
+            root.render(<Page />);
+        });
+    } else {
+        import('@/pages/health/HealthEnPage.jsx').then(({ default: Page }) => {
+            root.render(<Page />);
+        });
+    }
 
-// Load API test utilities in development
+// ── Main app ─────────────────────────────────────────────────────
+} else {
+    Promise.all([
+        import('@/i18n'),
+        import('@/components/ui/transitions/AnimatedRoutes.jsx'),
+        import('react-router-dom'),
+        import('@/contexts'),
+        import('@/contexts/BackButtonContext'),
+        import('@/components/ui/layout/GlobalBackButtonWrapper'),
+        import('@/components/ui/layout/GlobalFloatingButton'),
+        import('@/components/ui/layout/GlobalMessageInput'),
+        import('@/components/ui/layout'),
+        import('@/utils/webviewOptimizations'),
+        import('@/utils/versionCheck'),
+        import('@/components/ErrorBoundary'),
+    ]).then(([
+        _i18n,
+        { default: AnimatedRoutes },
+        { BrowserRouter },
+        { AuthProvider, UserPreferencesProvider },
+        { BackButtonProvider },
+        { default: GlobalBackButtonWrapper },
+        { default: GlobalFloatingButton },
+        { default: GlobalMessageInput },
+        { AppShell },
+        { initializeWebViewOptimizations },
+        { initializeVersionCheck },
+        { default: ErrorBoundary },
+    ]) => {
+        initializeWebViewOptimizations();
+        initializeVersionCheck();
 
-
-createRoot(document.getElementById('root')).render(
-    <ErrorBoundary>
-        <BrowserRouter>
-            <AuthProvider>
-                <BackButtonProvider>
-                    <UserPreferencesProvider>
-                        <AppShell>
-                            <AnimatedRoutes />
-                        </AppShell>
-
-                        {/* Global UI elements anchored via shell offsets */}
-                        <GlobalBackButtonWrapper />
-                        <GlobalFloatingButton />
-                        <GlobalMessageInput />
-                    </UserPreferencesProvider>
-                </BackButtonProvider>
-            </AuthProvider>
-        </BrowserRouter>
-    </ErrorBoundary>
-)
+        createRoot(document.getElementById('root')).render(
+            <ErrorBoundary>
+                <BrowserRouter>
+                    <AuthProvider>
+                        <BackButtonProvider>
+                            <UserPreferencesProvider>
+                                <AppShell>
+                                    <AnimatedRoutes />
+                                </AppShell>
+                                <GlobalBackButtonWrapper />
+                                <GlobalFloatingButton />
+                                <GlobalMessageInput />
+                            </UserPreferencesProvider>
+                        </BackButtonProvider>
+                    </AuthProvider>
+                </BrowserRouter>
+            </ErrorBoundary>
+        );
+    });
+}

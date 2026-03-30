@@ -3,7 +3,7 @@ import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from '@/styles/pages/search-results-page.module.css';
 
-import { placeService, bookmarkService, unifiedSearchService } from '@/services/apiService';
+import { placeService, bookmarkService, unifiedSearchService, searchChatService } from '@/services/apiService';
 import { authService } from '@/services/authService';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -290,14 +290,20 @@ export default function SearchResultsPage() {
 
           let response;
           if (debouncedQuery) {
-            response = await unifiedSearchService.search(debouncedQuery, lat, lon, { limit: MAX_CARDS });
+            // 대화형 검색 API (DB 저장 포함)
+            const sessionId = localStorage.getItem('mohe_session_id') ||
+              (() => { const id = crypto.randomUUID(); localStorage.setItem('mohe_session_id', id); return id; })();
+            response = await searchChatService.searchChat(debouncedQuery, lat, lon, {
+              limit: MAX_CARDS,
+              sessionId
+            });
           } else {
             response = await placeService.getNearbyPlaces(lat, lon, { radius: 3000, limit: MAX_CARDS });
           }
 
           if (response.success) {
             const data = response.data?.places || response.data || [];
-            results = data.map(normalizePlaceImages);
+            results = (Array.isArray(data) ? data : []).map(normalizePlaceImages);
 
             if (user && !user.isGuest && authService.isAuthenticated()) {
               results = await bookmarkService.applyBookmarkStatus(results);
