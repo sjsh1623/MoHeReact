@@ -224,22 +224,21 @@ export default function SearchResultsPage() {
   const [inputValue, setInputValue] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [showLoginSheet, setShowLoginSheet] = useState(false);
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
 
-  // 키보드 올라올 때 인풋 따라가기 (iOS/Android)
+  // 키보드 올라오면 전체 컨테이너 높이를 줄여서 흰 화면 방지
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
     const onResize = () => {
-      const offset = window.innerHeight - vv.height;
-      setKeyboardOffset(offset > 50 ? offset : 0);
+      setViewportHeight(vv.height);
+      // 키보드가 올라왔을 때 스크롤 맨 아래로
+      if (vv.height < window.innerHeight - 50) {
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      }
     };
     vv.addEventListener('resize', onResize);
-    vv.addEventListener('scroll', onResize);
-    return () => {
-      vv.removeEventListener('resize', onResize);
-      vv.removeEventListener('scroll', onResize);
-    };
+    return () => vv.removeEventListener('resize', onResize);
   }, []);
 
   const { location } = useGeolocation();
@@ -417,7 +416,7 @@ export default function SearchResultsPage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className={styles.pageContainer}>
+    <div className={styles.pageContainer} style={{ height: viewportHeight }}>
       {/* Header */}
       <header className={styles.header}>
         <button className={styles.backButton} onClick={() => navigate(-1)} aria-label="뒤로 가기">
@@ -583,7 +582,7 @@ export default function SearchResultsPage() {
 
       {/* Floating input — 키보드에 맞춰 올라감 */}
       {!loginRequired && (
-        <div className={styles.chatInputBar} style={keyboardOffset > 0 ? { bottom: keyboardOffset } : undefined}>
+        <div className={styles.chatInputBar}>
           <input ref={inputRef} type="text" className={styles.chatInput}
             placeholder={hasMessages ? '더 찾고 싶은 게 있나요?' : welcomeMessage}
             value={inputValue} onChange={e => setInputValue(e.target.value)}
