@@ -608,34 +608,27 @@
 }
 
 
-/* ── History button — 왼쪽 상단 동그라미 ─── */
-.historyButton {
-  position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 56px);
-  right: 16px;
+/* ── History button — 헤더 오른쪽 (뒤로가기와 같은 선상) ─── */
+.historyHeaderButton {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  background: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 60;
   color: #555;
   transition: background 0.15s, transform 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.historyButton:active { transform: scale(0.9); }
+.historyHeaderButton:active { transform: scale(0.9); background: #f0f0f0; }
 
 /* ── History panel ─── */
 .historyPanel {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 100px);
+  top: calc(env(safe-area-inset-top, 0px) + 56px);
   right: 16px;
   width: 280px;
   max-height: 360px;
