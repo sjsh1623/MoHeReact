@@ -224,21 +224,42 @@ export default function SearchResultsPage() {
   const [inputValue, setInputValue] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [showLoginSheet, setShowLoginSheet] = useState(false);
-  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+  const [viewportHeight, setViewportHeight] = useState('100dvh');
 
-  // 키보드 올라오면 전체 컨테이너 높이를 줄여서 흰 화면 방지
+  // 키보드 올라오면 컨테이너 높이 조정 + body 스크롤 차단
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
+
     const onResize = () => {
-      setViewportHeight(vv.height);
-      // 키보드가 올라왔을 때 스크롤 맨 아래로
-      if (vv.height < window.innerHeight - 50) {
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      // visualViewport.height = 키보드 제외한 실제 보이는 영역
+      setViewportHeight(`${vv.height}px`);
+      // body가 밀리지 않도록 고정
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      // 키보드 올라왔으면 채팅 맨 아래로
+      if (vv.height < window.innerHeight - 100) {
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'auto' }), 50);
       }
     };
+
+    // body 스크롤 막기 (이 페이지에서만)
+    const origOverflow = document.body.style.overflow;
+    const origPosition = document.body.style.position;
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+
     vv.addEventListener('resize', onResize);
-    return () => vv.removeEventListener('resize', onResize);
+    vv.addEventListener('scroll', onResize);
+
+    return () => {
+      vv.removeEventListener('resize', onResize);
+      vv.removeEventListener('scroll', onResize);
+      document.body.style.overflow = origOverflow;
+      document.body.style.position = origPosition;
+      document.body.style.width = '';
+    };
   }, []);
 
   const { location } = useGeolocation();

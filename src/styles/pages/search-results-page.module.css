@@ -1,12 +1,16 @@
 /* Search Results Page - Chat Style */
 
 .pageContainer {
-  height: 100dvh; /* fallback, JS에서 visualViewport.height로 override */
+  height: 100dvh;
   background: #f8f8f8;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 /* ── Header — back button only ───────────── */
