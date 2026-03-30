@@ -198,12 +198,16 @@ export default function SearchResultsPage() {
     return () => clearInterval(interval);
   }, [isLoading, loadingMessages.length]);
 
-  // Initial search
+  // Initial search — URL 쿼리가 있으면 검색 후 URL에서 제거 (새로고침 시 깨끗)
   useEffect(() => {
     if (hasInitialSearched.current || loginRequired) return;
     hasInitialSearched.current = true;
-    if (!initialQuery && !locationState?.results) return; // 빈 쿼리 → 환영 화면
+    if (!initialQuery && !locationState?.results) return;
     performSearch(initialQuery, locationState?.results || null);
+    // URL에서 쿼리 파라미터 제거 (새로고침 시 빈 화면)
+    if (initialQuery) {
+      window.history.replaceState(null, '', '/search-results');
+    }
   }, []); // eslint-disable-line
 
   // Auto-scroll

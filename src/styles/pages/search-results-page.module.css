@@ -612,7 +612,7 @@
 .historyButton {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 56px);
-  left: 16px;
+  right: 16px;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -636,7 +636,7 @@
 .historyPanel {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 100px);
-  left: 16px;
+  right: 16px;
   width: 280px;
   max-height: 360px;
   background: rgba(255, 255, 255, 0.98);
