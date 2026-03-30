@@ -6,7 +6,7 @@ import { authService } from '@/services/authService';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import styles from '@/styles/components/layout/global-message-input.module.css';
 
-const VISIBLE_ROUTES = ['/search-results'];
+const VISIBLE_ROUTES = []; // search-results는 자체 채팅 입력 사용
 
 export default function GlobalMessageInput() {
   const location = useLocation();

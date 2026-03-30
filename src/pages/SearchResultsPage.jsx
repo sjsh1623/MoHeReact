@@ -345,6 +345,11 @@ export default function SearchResultsPage() {
 
     hasInitialSearched.current = true;
 
+    // 쿼리 없이 접속 시 검색 안 함 (입력 대기)
+    if (!initialQuery && !locationState?.results) {
+      return;
+    }
+
     const preloaded = locationState?.results || null;
     performSearch(initialQuery, preloaded);
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
