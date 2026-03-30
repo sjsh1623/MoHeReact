@@ -313,9 +313,10 @@ export default function SearchResultsPage() {
       if (preloadedResults) {
         results = preloadedResults.map(normalizePlaceImages);
       } else {
-        // 위치: geolocation 우선, 없으면 기본 서울
-        let lat = location?.latitude || 37.5665;
-        let lon = location?.longitude || 126.9780;
+        // 위치: geolocation 우선, 없으면 저장된 위치, 최후에 기본 서울
+        const stored = JSON.parse(localStorage.getItem('mohe_user_location') || 'null');
+        let lat = location?.latitude || stored?.latitude || 37.5665;
+        let lon = location?.longitude || stored?.longitude || 126.9780;
 
         let response;
         if (query) {
