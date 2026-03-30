@@ -174,13 +174,13 @@ export const initializeVersionCheck = async () => {
     setStoredVersion(currentVersion);
   }
 
-  // 주기적 버전 체크 설정 (백그라운드에서)
+  // 주기적 버전 체크 (1분마다) — 새 버전 발견 시 자동 새로고침
   setInterval(async () => {
     const needsUpdate = await checkForUpdates();
     if (needsUpdate) {
-      // 새 버전 발견 시 사용자에게 알림 대신 자동 새로고침
-      // 또는 커스텀 이벤트 발생시켜 UI에서 처리 가능
-      window.dispatchEvent(new CustomEvent('app-update-available'));
+      console.log('[Version Check] Auto-refreshing to new version...');
+      setStoredVersion(await fetchLatestVersion());
+      window.location.reload();
     }
   }, CHECK_INTERVAL);
 };
