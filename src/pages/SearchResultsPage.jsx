@@ -262,7 +262,12 @@ export default function SearchResultsPage() {
     };
   }, []);
 
-  const { location } = useGeolocation();
+  const { location, requestLocation } = useGeolocation();
+
+  // 페이지 진입 시 위치 새로 조회
+  useEffect(() => {
+    requestLocation();
+  }, []); // eslint-disable-line
   const { history, addConversation, removeEntry } = useConversationHistory();
 
   const user = authService.getCurrentUser();
