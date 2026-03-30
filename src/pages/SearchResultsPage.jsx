@@ -3,7 +3,7 @@ import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from '@/styles/pages/search-results-page.module.css';
 
-import { placeService, bookmarkService, searchChatService } from '@/services/apiService';
+import { placeService, bookmarkService, searchChatService, weatherService } from '@/services/apiService';
 import { authService } from '@/services/authService';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useConversationHistory } from '@/hooks/useConversationHistory';
@@ -14,49 +14,148 @@ const CARD_DELAY = 0.45;
 const MAX_CARDS = 3;
 const MIN_LOADING_MS = 3000;
 
-function getWelcomeMessage() {
+// 시간대 × 날씨별 환영 멘트
+const WELCOME_POOL = {
+  morning: {
+    sunny: [
+      '화창한 아침이에요! ☀️\n테라스 있는 브런치 카페 어때요?',
+      '날씨 좋은 아침!\n산책하면서 커피 한 잔 하러 갈까요? 🚶‍♂️',
+      '맑은 아침이에요~ ☀️\n야외에서 아침 먹기 딱 좋은 날이에요',
+      '오늘 아침 햇살이 좋네요!\n기분 좋게 시작해볼까요? ☕',
+    ],
+    cloudy: [
+      '흐린 아침이에요 ☁️\n따뜻한 카페에서 모닝커피 어때요?',
+      '구름 낀 아침이네요~\n포근한 실내에서 브런치 하러 가요',
+      '흐릿한 아침이지만!\n맛있는 빵 냄새 맡으러 갈까요? 🥐',
+      '오늘 좀 흐리네요~\n아늑한 곳에서 하루 시작해요 ☕',
+    ],
+    rainy: [
+      '비 오는 아침이에요 🌧️\n창가 자리에서 커피 한 잔 어때요?',
+      '비 소리 들으며 브런치 어때요?\n분위기 있는 곳 찾아드릴게요 ☔',
+      '비 오는 날 아침엔\n따뜻한 죽 한 그릇이 최고죠 🍲',
+      '우산 챙기셨죠? 🌂\n비 와도 가기 좋은 곳 알려드릴게요',
+    ],
+    snowy: [
+      '눈 오는 아침이에요! ❄️\n따뜻한 곳에서 핫초코 어때요?',
+      '눈이 내리네요~ ☃️\n포근한 카페에서 눈 구경할까요?',
+      '하얀 아침이에요!\n따뜻한 빵이랑 커피 생각나지 않아요? 🥖',
+    ],
+    default: [
+      '좋은 아침이에요! 🌤️\n오늘 하루 어떻게 시작할까요?',
+      '모닝 커피 한 잔 어때요? ☕\n좋은 곳 찾아드릴게요',
+      '굿모닝! ✨\n오늘 아침은 뭐 먹고 싶으세요?',
+    ],
+  },
+  afternoon: {
+    sunny: [
+      '햇살 좋은 오후에요! ☀️\n테라스에서 점심 어때요?',
+      '날씨 좋은데 밖에서 먹을까요?\n야외 맛집 찾아드릴게요 🌿',
+      '화창한 오후!\n공원 근처 카페 어떠세요? 🌳',
+      '이 날씨에 실내에만 있기 아깝죠?\n바람 맞으며 먹어요 ☀️',
+    ],
+    cloudy: [
+      '흐린 오후네요 ☁️\n실내에서 맛있는 거 먹을까요?',
+      '구름 많은 오후~\n갤러리 카페 같은 데 어때요? 🎨',
+      '흐릿한 날엔 실내가 최고!\n뭐 먹고 싶으세요? 🍽️',
+      '나른한 오후에요~\n달달한 디저트 하나 어때요? 🍰',
+    ],
+    rainy: [
+      '비 오는 오후에요 🌧️\n파전에 막걸리 생각나지 않아요?',
+      '비 오는 날엔 따끈한 국물이죠!\n뭐 먹을까요? 🍲',
+      '비 소리 들으며 카페에서\n여유로운 오후 보내요 ☕',
+      '비 오는 날 딱 좋은 곳\n찾아드릴게요 ☔',
+    ],
+    snowy: [
+      '눈 오는 오후에요! ❄️\n뜨끈한 찌개 먹으러 갈까요?',
+      '눈 내리는 날엔\n따뜻한 실내가 최고예요 ☃️',
+      '하얀 눈 보면서 라멘 한 그릇 어때요? 🍜',
+    ],
+    default: [
+      '점심 뭐 먹을지 고민이죠? 🍽️\n제가 도와드릴게요',
+      '오후에 어디 갈지 정하셨어요?\n말만 하세요! ✨',
+      '달달한 디저트가 땡기는 오후네요 🍰',
+      '나른한 오후, 카페 갈까요? ☕',
+    ],
+  },
+  evening: {
+    sunny: [
+      '노을이 예쁜 저녁이에요 🌅\n루프탑에서 한 잔 할까요?',
+      '맑은 저녁!\n야경 보면서 저녁 먹어요 🌆',
+      '저녁놀이 예쁜 날이에요~\n뷰 좋은 곳 알려드릴까요? ✨',
+      '퇴근길 날씨가 좋네요!\n어디 들러볼까요? 🌇',
+    ],
+    cloudy: [
+      '흐린 저녁이에요~\n분위기 있는 곳에서 저녁 어때요? 🕯️',
+      '구름 낀 저녁!\n와인바에서 한 잔 할까요? 🍷',
+      '퇴근하셨어요? 수고했어요! 🙌\n맛있는 거 먹으러 가요',
+      '흐린 저녁엔 실내가 좋아요\n뭐 먹고 싶으세요?',
+    ],
+    rainy: [
+      '비 오는 저녁이네요 🌧️\n얼큰한 국물 어때요?',
+      '비 오는 밤에 이자카야 어때요?\n따뜻한 사케 한 잔 🍶',
+      '비 소리 들으며 와인 한 잔?\n분위기 있는 곳 찾아볼게요 🍷',
+      '비 오는 저녁엔\n매운 거 먹고 싶지 않아요? 🌶️',
+    ],
+    snowy: [
+      '눈 오는 저녁이에요! ❄️\n뜨끈한 샤브샤브 어때요?',
+      '눈 내리는 밤~\n따뜻한 곳에서 고기 구워먹어요 🥩',
+      '하얀 눈 보면서 저녁 먹어요 ☃️\n어떤 게 땡기세요?',
+    ],
+    default: [
+      '오늘 저녁은 뭐 먹을까요? 🌙\n맛있는 곳 찾아볼게요',
+      '오늘 하루도 고생했어요!\n맛있는 걸로 보상해요 ✨',
+      '저녁 약속 있으세요?\n괜찮은 곳 추천해드릴까요?',
+      '뭔가 먹고 싶은데\n뭘 먹을지 모르겠죠? 도와드릴게요!',
+    ],
+  },
+  night: {
+    sunny: [
+      '맑은 밤이에요 🌙\n야경 보러 갈까요?',
+      '별이 보이는 밤!\n루프탑 바 어때요? ✨',
+      '맑은 밤하늘 아래\n한 잔 하러 갈까요? 🍺',
+    ],
+    cloudy: [
+      '늦은 밤이네요~\n아직 열린 곳 찾아볼까요? 🌃',
+      '밤이 깊어가요\n야식 먹을까요? 🍜',
+      '이 시간에도 갈 곳 있어요!\n뭘 찾으세요? ✨',
+    ],
+    rainy: [
+      '비 오는 밤이에요 🌧️\n포차에서 한 잔 할까요?',
+      '비 오는 밤에 라멘 어때요?\n따끈한 국물이 생각나요 🍜',
+      '비 소리 들으며 바에서\n조용히 한 잔 어때요? 🥃',
+    ],
+    snowy: [
+      '눈 오는 밤이에요! ❄️\n따뜻한 곳 찾아드릴게요',
+      '하얀 밤이네요~ ☃️\n뜨끈한 어묵탕 어때요?',
+    ],
+    default: [
+      '이 밤에 뭐 먹을까요? 🌃\n야식 찾아드릴게요',
+      '밤에 출출하죠?\n맛있는 야식 추천해드릴게요 🍜',
+      '잠이 안 오시나요?\n카페나 바 어때요? 🍸',
+    ],
+  },
+};
+
+function getWelcomeMessage(weatherText) {
   const hour = new Date().getHours();
 
-  const morning = [ // 6-11
-    '좋은 아침이에요! ☀️\n오늘 하루 어떻게 시작할까요?',
-    '모닝 커피 한 잔 어때요? ☕\n좋은 곳 찾아드릴게요',
-    '상쾌한 아침이에요!\n브런치 먹으러 갈까요?',
-    '굿모닝! 🌤️\n오늘 아침은 뭐 먹고 싶으세요?',
-    '일어나셨군요!\n맛있는 아침 찾아드릴까요?',
-  ];
+  let timeSlot;
+  if (hour >= 6 && hour < 12) timeSlot = 'morning';
+  else if (hour >= 12 && hour < 18) timeSlot = 'afternoon';
+  else if (hour >= 18 && hour < 23) timeSlot = 'evening';
+  else timeSlot = 'night';
 
-  const afternoon = [ // 12-17
-    '점심 뭐 먹을지 고민이죠? 🍽️\n제가 도와드릴게요',
-    '오후에 어디 갈지 정하셨어요?\n말만 하세요!',
-    '달달한 디저트가 땡기는 오후네요 🍰',
-    '나른한 오후, 카페 갈까요? ☕\n분위기 좋은 곳 알아요',
-    '오늘 오후는 뭐하고 싶으세요?\n뭐든 찾아드릴게요!',
-    '점심 먹고 나른하죠?\n산책하기 좋은 곳도 있어요 🚶',
-  ];
+  // 날씨 텍스트에서 조건 매칭
+  let weather = 'default';
+  if (weatherText) {
+    const w = weatherText.toLowerCase();
+    if (w.includes('눈') || w.includes('snow')) weather = 'snowy';
+    else if (w.includes('비') || w.includes('rain') || w.includes('소나기')) weather = 'rainy';
+    else if (w.includes('흐') || w.includes('구름') || w.includes('cloud')) weather = 'cloudy';
+    else if (w.includes('맑') || w.includes('clear') || w.includes('sun') || w.includes('晴')) weather = 'sunny';
+  }
 
-  const evening = [ // 18-22
-    '오늘 저녁은 뭐 먹을까요? 🌙\n맛있는 곳 찾아볼게요',
-    '퇴근하셨어요? 수고했어요! 🙌\n맛있는 거 먹으러 가요',
-    '저녁인데 한 잔 할까요? 🍷\n분위기 좋은 곳 알려드릴게요',
-    '오늘 하루도 고생했어요!\n맛있는 걸로 보상해요 ✨',
-    '저녁 약속 있으세요?\n괜찮은 곳 추천해드릴까요?',
-    '뭔가 먹고 싶은데\n뭘 먹을지 모르겠죠? 도와드릴게요!',
-  ];
-
-  const night = [ // 23-5
-    '이 밤에 뭐 먹을까요? 🌃\n야식 찾아드릴게요',
-    '늦은 밤이네요!\n아직 열린 곳 찾아볼까요?',
-    '밤에 출출하죠?\n맛있는 야식 추천해드릴게요 🍜',
-    '잠이 안 오시나요?\n카페나 바 어때요?',
-    '이 시간에도 갈 곳 있어요!\n뭘 찾으세요?',
-  ];
-
-  let pool;
-  if (hour >= 6 && hour < 12) pool = morning;
-  else if (hour >= 12 && hour < 18) pool = afternoon;
-  else if (hour >= 18 && hour < 23) pool = evening;
-  else pool = night;
-
+  const pool = WELCOME_POOL[timeSlot]?.[weather] || WELCOME_POOL[timeSlot]?.default || WELCOME_POOL.afternoon.default;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -153,7 +252,17 @@ export default function SearchResultsPage() {
   const loadingMessages = getLoadingMessages(loadingQuery);
 
   // 랜덤 환영 메시지 (마운트 시 1회)
-  const welcomeMessage = useMemo(() => getWelcomeMessage(), []);
+  const [weatherText, setWeatherText] = useState(null);
+  const welcomeMessage = useMemo(() => getWelcomeMessage(weatherText), [weatherText]);
+
+  // 날씨 가져오기 (환영 멘트용)
+  useEffect(() => {
+    if (!location) return;
+    weatherService.getCurrentWeather(location.latitude, location.longitude)
+      .then(res => {
+        if (res?.data?.conditionText) setWeatherText(res.data.conditionText);
+      }).catch(() => {});
+  }, [location]);
 
   const buildAiMessage = useCallback((query, results, error, searchMessage) => {
     if (error) return `${error}\n다시 검색해볼까요?`;
