@@ -49,8 +49,8 @@
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  /* bottom padding = input bar height (56) + gap (16) + safe area */
-  padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 88px);
+  /* bottom padding = floating pill height (56) + bottom offset (16) + safe area + gap */
+  padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 90px);
   gap: 10px;
   -webkit-overflow-scrolling: touch;
 }
@@ -608,39 +608,36 @@
 }
 
 
-/* ── Chat input bar ─────────────────────── */
+/* ── Chat input bar — floating pill style ─── */
 .chatInputBar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  left: 16px;
+  right: 16px;
+  background: rgba(235, 235, 237, 0.96);
+  border-radius: 28px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
-  background: #f8f8f8;
-  border-top: 1px solid #ebebeb;
+  padding: 10px 12px 10px 20px;
+  gap: 10px;
   z-index: 50;
 }
 
 .chatInput {
   flex: 1;
-  height: 42px;
-  border: 1.5px solid #e0e0e0;
-  border-radius: 21px;
-  padding: 0 16px;
+  border: none;
+  background: none;
+  outline: none;
   font-size: 15px;
   font-family: inherit;
-  background: #fff;
-  color: #222;
-  outline: none;
-  transition: border-color 0.15s;
+  font-weight: 400;
+  color: #111;
+  line-height: 1.4;
+  caret-color: #6C63FF;
   -webkit-appearance: none;
-}
-
-.chatInput:focus {
-  border-color: #aaa;
 }
 
 .chatInput:disabled {
@@ -648,27 +645,27 @@
 }
 
 .chatInput::placeholder {
-  color: #bbb;
+  color: #aaa;
 }
 
 .sendButton {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
-  background: #e0e0e0;
-  color: #aaa;
+  background: #d1d1d6;
+  color: #888;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s, color 0.15s, transform 0.15s;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 
 .sendButton:disabled {
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .sendButtonActive {
@@ -677,7 +674,14 @@
 }
 
 .sendButtonActive:active {
-  transform: scale(0.92);
+  transform: scale(0.9);
+}
+
+@media (max-width: 480px) {
+  .chatInputBar {
+    left: 12px;
+    right: 12px;
+  }
 }
 
 /* ── Touch optimizations ─────────────────── */
