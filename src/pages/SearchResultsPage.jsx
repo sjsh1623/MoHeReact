@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from '@/styles/pages/search-results-page.module.css';
 
-import { placeService, bookmarkService, unifiedSearchService, searchChatService } from '@/services/apiService';
+import { placeService, bookmarkService, searchChatService } from '@/services/apiService';
 import { authService } from '@/services/authService';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { useDebounce } from '@/hooks/useDebounce';
 import { useConversationHistory } from '@/hooks/useConversationHistory';
 import { buildImageUrl, normalizePlaceImages } from '@/utils/image';
 import LoginRequiredSheet from '@/components/ui/modals/LoginRequiredSheet';
@@ -28,6 +27,20 @@ const getLoadingMessages = (query) => query
       '마음에 드실 것 같아요',
       '거의 다 됐어요',
     ];
+
+let msgIdCounter = 0;
+function nextMsgId() {
+  return `msg-${Date.now()}-${++msgIdCounter}`;
+}
+
+function getSessionId() {
+  let id = localStorage.getItem('mohe_session_id');
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem('mohe_session_id', id);
+  }
+  return id;
+}
 
 function formatHistoryDate(isoString) {
   const date = new Date(isoString);
@@ -174,34 +187,35 @@ export default function SearchResultsPage() {
   const locationState = useLocation().state;
   const navigate = useNavigate();
 
-  const query = searchParams.get('q') || locationState?.query || '';
+  const initialQuery = searchParams.get('q') || locationState?.query || '';
   const loginRequired = locationState?.loginRequired ?? false;
-  const debouncedQuery = useDebounce(query, 300);
-  const bottomRef = useRef(null);
 
-  const [searchResults, setSearchResults] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [searchMessage, setSearchMessage] = useState('');
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
+  const hasInitialSearched = useRef(false);
+
+  // messages: array of { id, role: 'user'|'assistant', content, places, isStreaming }
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
-  const [finalAiMessage, setFinalAiMessage] = useState('');
+  const [loadingQuery, setLoadingQuery] = useState('');
+  const [inputValue, setInputValue] = useState('');
   const [showSidebar, setShowSidebar] = useState(false);
   const [showLoginSheet, setShowLoginSheet] = useState(false);
+
   const { location } = useGeolocation();
   const { history, addConversation, removeEntry } = useConversationHistory();
-
-  const loadingMessages = getLoadingMessages(query);
 
   const user = authService.getCurrentUser();
   const isGuest = !user || user.isGuest;
   const userName = user && !user.isGuest ? (user.nickname || '사용자') : null;
 
-  const displayedCards = searchResults.slice(0, MAX_CARDS);
-  const messageDelay = displayedCards.length * CARD_DELAY;
+  const loadingMessages = getLoadingMessages(loadingQuery);
 
-  const getAiMessage = () => {
+  // Build AI message text based on query and results
+  const buildAiMessage = useCallback((query, results, error, searchMessage) => {
     if (error) return `${error}\n다시 검색해볼까요?`;
-    if (searchResults.length === 0) {
+    if (results.length === 0) {
       return query
         ? `'${query}'에 맞는 곳을 못 찾았어요.\n다른 키워드나 분위기로 다시 찾아볼까요?`
         : '근처에 추천할 장소가 아직 없어요.\n원하는 분위기를 말해주시면 찾아드릴게요!';
@@ -213,7 +227,106 @@ export default function SearchResultsPage() {
     }
     const base = searchMessage || `'${query}'에 딱 맞는 곳들이에요.`;
     return `${base}\n마음에 드는 곳이 있나요? 조건을 더 알려주시면 바로 찾아드려요!`;
-  };
+  }, [isGuest, userName]);
+
+  // Core search function - appends messages
+  const performSearch = useCallback(async (query, preloadedResults = null) => {
+    // Add user message
+    if (query) {
+      setMessages(prev => [...prev, { id: nextMsgId(), role: 'user', content: query, places: [] }]);
+    }
+
+    setIsLoading(true);
+    setLoadingQuery(query);
+    setLoadingMsgIndex(0);
+
+    try {
+      const startTime = Date.now();
+      let results = [];
+      let msgText = '';
+      let fetchError = null;
+
+      if (preloadedResults) {
+        results = preloadedResults.map(normalizePlaceImages);
+      } else {
+        let lat = 37.5665;
+        let lon = 126.9780;
+        if (location) {
+          lat = location.latitude;
+          lon = location.longitude;
+        }
+
+        let response;
+        if (query) {
+          const sessionId = getSessionId();
+          response = await searchChatService.searchChat(query, lat, lon, {
+            limit: MAX_CARDS,
+            sessionId,
+          });
+        } else {
+          response = await placeService.getNearbyPlaces(lat, lon, { radius: 3000, limit: MAX_CARDS });
+        }
+
+        if (response.success) {
+          const data = response.data?.places || response.data || [];
+          results = (Array.isArray(data) ? data : []).map(normalizePlaceImages);
+
+          if (user && !user.isGuest && authService.isAuthenticated()) {
+            results = await bookmarkService.applyBookmarkStatus(results);
+          }
+          msgText = response.data?.message || '';
+        } else {
+          fetchError = '검색 결과를 불러오는데 실패했습니다.';
+        }
+      }
+
+      const elapsed = Date.now() - startTime;
+      const remaining = MIN_LOADING_MS - elapsed;
+      if (remaining > 0) {
+        await new Promise(resolve => setTimeout(resolve, remaining));
+      }
+
+      const aiContent = buildAiMessage(query, results, fetchError, msgText);
+
+      // Add assistant message
+      setMessages(prev => [
+        ...prev,
+        {
+          id: nextMsgId(),
+          role: 'assistant',
+          content: aiContent,
+          places: results.slice(0, MAX_CARDS),
+          isStreaming: true,
+        },
+      ]);
+
+      // Save to conversation history
+      if (query) {
+        const previews = results.slice(0, MAX_CARDS).map(p => ({
+          id: p.id,
+          name: p.name || p.title,
+          imageUrl: p.images?.[0] || p.image || p.imageUrl || '',
+        }));
+        addConversation({ query, aiMessage: aiContent, resultPreviews: previews });
+      }
+    } catch (err) {
+      console.error('Failed to search places:', err);
+      await new Promise(resolve => setTimeout(resolve, MIN_LOADING_MS));
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: nextMsgId(),
+          role: 'assistant',
+          content: '검색 중 오류가 발생했습니다.\n다시 검색해볼까요?',
+          places: [],
+          isStreaming: true,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [location, user, buildAiMessage, addConversation]);
 
   // Cycle loading messages
   useEffect(() => {
@@ -223,117 +336,35 @@ export default function SearchResultsPage() {
       setLoadingMsgIndex(prev => (prev + 1) % loadingMessages.length);
     }, 1100);
     return () => clearInterval(interval);
-  }, [isLoading]);
+  }, [isLoading, loadingMessages.length]);
 
-  // Capture AI message + save history when loading finishes
+  // Initial search from URL query or preloaded results
   useEffect(() => {
-    if (isLoading) {
-      setFinalAiMessage('');
-      return;
-    }
-    if (!loginRequired) {
-      const msg = getAiMessage();
-      setFinalAiMessage(msg);
-      if (query) {
-        const previews = displayedCards.map(p => ({
-          id: p.id,
-          name: p.name || p.title,
-          imageUrl: p.images?.[0] || p.image || p.imageUrl || '',
-        }));
-        addConversation({ query, aiMessage: msg, resultPreviews: previews });
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading]);
+    if (hasInitialSearched.current) return;
+    if (loginRequired) return;
 
-  // Auto-scroll after cards animate in
+    hasInitialSearched.current = true;
+
+    const preloaded = locationState?.results || null;
+    performSearch(initialQuery, preloaded);
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-scroll when new messages arrive or loading finishes
   useEffect(() => {
-    if (!isLoading) {
-      const totalDelay = (loginRequired ? 0 : messageDelay + 0.4) * 1000 + 400;
-      const timer = setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, totalDelay);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, loginRequired, messageDelay]);
+    const timer = setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [messages.length, isLoading]);
 
-  const handleStreamComplete = () => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    if (loginRequired) {
-      setIsLoading(false);
-      return;
-    }
-
-    const searchPlaces = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const startTime = Date.now();
-
-        let results = [];
-        let msgText = '';
-        let fetchError = null;
-
-        if (locationState?.results) {
-          results = locationState.results.map(normalizePlaceImages);
-          if (locationState.error) fetchError = locationState.error;
-        } else {
-          let lat = 37.5665;
-          let lon = 126.9780;
-          if (location) {
-            lat = location.latitude;
-            lon = location.longitude;
-          }
-
-          let response;
-          if (debouncedQuery) {
-            // 대화형 검색 API (DB 저장 포함)
-            const sessionId = localStorage.getItem('mohe_session_id') ||
-              (() => { const id = crypto.randomUUID(); localStorage.setItem('mohe_session_id', id); return id; })();
-            response = await searchChatService.searchChat(debouncedQuery, lat, lon, {
-              limit: MAX_CARDS,
-              sessionId
-            });
-          } else {
-            response = await placeService.getNearbyPlaces(lat, lon, { radius: 3000, limit: MAX_CARDS });
-          }
-
-          if (response.success) {
-            const data = response.data?.places || response.data || [];
-            results = (Array.isArray(data) ? data : []).map(normalizePlaceImages);
-
-            if (user && !user.isGuest && authService.isAuthenticated()) {
-              results = await bookmarkService.applyBookmarkStatus(results);
-            }
-            msgText = response.data?.message || '';
-          } else {
-            fetchError = '검색 결과를 불러오는데 실패했습니다.';
-          }
-        }
-
-        const elapsed = Date.now() - startTime;
-        const remaining = MIN_LOADING_MS - elapsed;
-        if (remaining > 0) {
-          await new Promise(resolve => setTimeout(resolve, remaining));
-        }
-
-        setSearchResults(results);
-        setSearchMessage(msgText);
-        if (fetchError) setError(fetchError);
-      } catch (err) {
-        console.error('Failed to search places:', err);
-        await new Promise(resolve => setTimeout(resolve, MIN_LOADING_MS));
-        setError('검색 중 오류가 발생했습니다.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    searchPlaces();
-  }, [debouncedQuery, location, loginRequired]);
+  const handleStreamComplete = useCallback((msgId) => {
+    setMessages(prev =>
+      prev.map(m => m.id === msgId ? { ...m, isStreaming: false } : m)
+    );
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  }, []);
 
   const handleBookmarkToggle = async (placeId, shouldBookmark) => {
     try {
@@ -346,8 +377,14 @@ export default function SearchResultsPage() {
       } else {
         await bookmarkService.removeBookmark(placeId);
       }
-      setSearchResults(prev =>
-        prev.map(p => p.id === placeId ? { ...p, isBookmarked: shouldBookmark } : p)
+      // Update bookmark in all messages
+      setMessages(prev =>
+        prev.map(msg => ({
+          ...msg,
+          places: msg.places.map(p =>
+            p.id === placeId ? { ...p, isBookmarked: shouldBookmark } : p
+          ),
+        }))
       );
     } catch (err) {
       console.error('Failed to bookmark place:', err);
@@ -370,6 +407,28 @@ export default function SearchResultsPage() {
     setShowSidebar(false);
     navigate(`/search-results?q=${encodeURIComponent(historyQuery)}`);
   };
+
+  const handleSendMessage = () => {
+    const trimmed = inputValue.trim();
+    if (!trimmed || isLoading) return;
+    setInputValue('');
+    performSearch(trimmed);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // Determine index of last assistant message (for streaming animation)
+  const lastAssistantIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') return i;
+    }
+    return -1;
+  })();
 
   return (
     <div className={styles.pageContainer}>
@@ -394,16 +453,105 @@ export default function SearchResultsPage() {
       <div className={styles.chatArea}>
         <div className={styles.spacer} />
 
-        {/* User query bubble */}
-        {(query || loginRequired) && (
-          <div className={styles.userMessageRow}>
-            <div className={styles.userBubble}>
-              {loginRequired ? locationState?.query : query}
+        {/* Login required initial prompt */}
+        {loginRequired && (
+          <>
+            <div className={styles.userMessageRow}>
+              <div className={styles.userBubble}>
+                {locationState?.query}
+              </div>
             </div>
-          </div>
+            <motion.div
+              className={styles.aiMessageRow}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+            >
+              <div className={styles.aiAvatar}>M</div>
+              <div className={styles.loginBubble}>
+                <p className={styles.loginBubbleText}>
+                  맞춤 추천을 위해 로그인이 필요해요.{'\n'}회원 데이터를 기반으로 더 잘 찾아드릴게요!
+                </p>
+                <button
+                  className={styles.loginButton}
+                  onClick={() => navigate('/login', { state: { from: '/search-results' } })}
+                >
+                  로그인하기
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            </motion.div>
+          </>
         )}
 
-        {/* Loading */}
+        {/* Render all accumulated messages */}
+        {messages.map((msg, idx) => {
+          if (msg.role === 'user') {
+            return (
+              <div key={msg.id} className={styles.userMessageRow}>
+                <div className={styles.userBubble}>{msg.content}</div>
+              </div>
+            );
+          }
+
+          // Assistant message
+          const isLatest = idx === lastAssistantIdx;
+          const displayedCards = msg.places || [];
+          const messageDelay = isLatest && msg.isStreaming ? displayedCards.length * CARD_DELAY : 0;
+
+          return (
+            <React.Fragment key={msg.id}>
+              {displayedCards.map((place, cardIdx) => (
+                <motion.div
+                  key={place.id}
+                  className={styles.cardWrapper}
+                  initial={isLatest && msg.isStreaming ? { opacity: 0, y: 20 } : false}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    delay: isLatest && msg.isStreaming ? cardIdx * CARD_DELAY : 0,
+                    duration: 0.4,
+                    ease: [0.25, 0.46, 0.45, 0.94],
+                  }}
+                >
+                  <PlaceCard
+                    place={place}
+                    onBookmarkToggle={handleBookmarkToggle}
+                    onClick={() => handlePlaceClick(place)}
+                  />
+                </motion.div>
+              ))}
+
+              <motion.div
+                className={styles.aiMessageRow}
+                initial={isLatest && msg.isStreaming ? { opacity: 0, y: 12 } : false}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  delay: messageDelay,
+                  duration: 0.35,
+                  ease: [0.25, 0.46, 0.45, 0.94],
+                }}
+              >
+                <div className={styles.aiAvatar}>M</div>
+                <div className={styles.aiBubble}>
+                  {isLatest && msg.isStreaming ? (
+                    <StreamText
+                      text={msg.content}
+                      speed={18}
+                      startDelay={messageDelay}
+                      onComplete={() => handleStreamComplete(msg.id)}
+                    />
+                  ) : (
+                    <span style={{ whiteSpace: 'pre-line' }}>{msg.content}</span>
+                  )}
+                </div>
+              </motion.div>
+            </React.Fragment>
+          );
+        })}
+
+        {/* Loading indicator */}
         {isLoading && (
           <div className={styles.aiMessageRow}>
             <div className={styles.aiAvatar}>M</div>
@@ -429,80 +577,35 @@ export default function SearchResultsPage() {
           </div>
         )}
 
-        {/* Login required prompt */}
-        {!isLoading && loginRequired && (
-          <motion.div
-            className={styles.aiMessageRow}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-          >
-            <div className={styles.aiAvatar}>M</div>
-            <div className={styles.loginBubble}>
-              <p className={styles.loginBubbleText}>
-                맞춤 추천을 위해 로그인이 필요해요.{'\n'}회원 데이터를 기반으로 더 잘 찾아드릴게요!
-              </p>
-              <button
-                className={styles.loginButton}
-                onClick={() => navigate('/login', { state: { from: '/search-results' } })}
-              >
-                로그인하기
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Results */}
-        {!isLoading && !loginRequired && (
-          <>
-            {displayedCards.map((place, index) => (
-              <motion.div
-                key={place.id}
-                className={styles.cardWrapper}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: index * CARD_DELAY,
-                  duration: 0.4,
-                  ease: [0.25, 0.46, 0.45, 0.94]
-                }}
-              >
-                <PlaceCard
-                  place={place}
-                  onBookmarkToggle={handleBookmarkToggle}
-                  onClick={() => handlePlaceClick(place)}
-                />
-              </motion.div>
-            ))}
-
-            <motion.div
-              className={styles.aiMessageRow}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                delay: messageDelay,
-                duration: 0.35,
-                ease: [0.25, 0.46, 0.45, 0.94]
-              }}
-            >
-              <div className={styles.aiAvatar}>M</div>
-              <div className={styles.aiBubble}>
-                <StreamText
-                  text={finalAiMessage}
-                  speed={18}
-                  startDelay={messageDelay}
-                  onComplete={handleStreamComplete}
-                />
-              </div>
-            </motion.div>
-          </>
-        )}
-
         <div ref={bottomRef} />
       </div>
+
+      {/* Chat input bar */}
+      {!loginRequired && (
+        <div className={styles.chatInputBar}>
+          <input
+            ref={inputRef}
+            type="text"
+            className={styles.chatInput}
+            placeholder="더 찾고 싶은 게 있나요?"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading}
+          />
+          <button
+            className={`${styles.sendButton} ${inputValue.trim() && !isLoading ? styles.sendButtonActive : ''}`}
+            onClick={handleSendMessage}
+            disabled={!inputValue.trim() || isLoading}
+            aria-label="전송"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* History Sidebar */}
       {showSidebar && (
