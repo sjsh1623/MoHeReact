@@ -92,6 +92,23 @@ export default function SearchResultsPage() {
   const [inputValue, setInputValue] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [showLoginSheet, setShowLoginSheet] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+  // 키보드 올라올 때 인풋 따라가기 (iOS/Android)
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      const offset = window.innerHeight - vv.height;
+      setKeyboardOffset(offset > 50 ? offset : 0);
+    };
+    vv.addEventListener('resize', onResize);
+    vv.addEventListener('scroll', onResize);
+    return () => {
+      vv.removeEventListener('resize', onResize);
+      vv.removeEventListener('scroll', onResize);
+    };
+  }, []);
 
   const { location } = useGeolocation();
   const { history, addConversation, removeEntry } = useConversationHistory();
@@ -325,16 +342,18 @@ export default function SearchResultsPage() {
       <div className={styles.chatArea}>
         <div className={styles.spacer} />
 
-        {/* Welcome message — 대화 없을 때 */}
+        {/* Welcome message — AI 메시지처럼 스트리밍 */}
         {!hasMessages && !isLoading && !loginRequired && (
           <motion.div
-            className={styles.welcomeContainer}
-            initial={{ opacity: 0, y: 20 }}
+            className={styles.aiMessageRow}
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+            transition={{ delay: 0.3, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
-            <div className={styles.welcomeAvatar}>M</div>
-            <p className={styles.welcomeText}>{welcomeMessage}</p>
+            <div className={styles.aiAvatar}>M</div>
+            <div className={styles.aiBubble}>
+              <StreamText text={welcomeMessage} speed={30} startDelay={0.5} />
+            </div>
           </motion.div>
         )}
 
@@ -421,9 +440,9 @@ export default function SearchResultsPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Floating input */}
+      {/* Floating input — 키보드에 맞춰 올라감 */}
       {!loginRequired && (
-        <div className={styles.chatInputBar}>
+        <div className={styles.chatInputBar} style={keyboardOffset > 0 ? { bottom: keyboardOffset } : undefined}>
           <input ref={inputRef} type="text" className={styles.chatInput}
             placeholder={hasMessages ? '더 찾고 싶은 게 있나요?' : welcomeMessage}
             value={inputValue} onChange={e => setInputValue(e.target.value)}
