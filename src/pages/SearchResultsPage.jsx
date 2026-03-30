@@ -14,18 +14,51 @@ const CARD_DELAY = 0.45;
 const MAX_CARDS = 3;
 const MIN_LOADING_MS = 3000;
 
-const WELCOME_MESSAGES = [
-  '오늘은 어떤 기분인가요?',
-  '어떤 곳을 찾고 계신가요?',
-  '오늘 뭐 먹을지 고민이세요?',
-  '어디 가고 싶으세요?',
-  '기분에 맞는 장소를 찾아드릴게요!',
-  '오늘 하루 어떻게 보내고 싶으세요?',
-  '특별한 곳을 찾고 계신가요?',
-  '맛있는 거 먹으러 갈까요?',
-  '어떤 분위기를 원하세요?',
-  '편하게 말씀해주세요 :)',
-];
+function getWelcomeMessage() {
+  const hour = new Date().getHours();
+
+  const morning = [ // 6-11
+    '좋은 아침이에요! ☀️\n오늘 하루 어떻게 시작할까요?',
+    '모닝 커피 한 잔 어때요? ☕\n좋은 곳 찾아드릴게요',
+    '상쾌한 아침이에요!\n브런치 먹으러 갈까요?',
+    '굿모닝! 🌤️\n오늘 아침은 뭐 먹고 싶으세요?',
+    '일어나셨군요!\n맛있는 아침 찾아드릴까요?',
+  ];
+
+  const afternoon = [ // 12-17
+    '점심 뭐 먹을지 고민이죠? 🍽️\n제가 도와드릴게요',
+    '오후에 어디 갈지 정하셨어요?\n말만 하세요!',
+    '달달한 디저트가 땡기는 오후네요 🍰',
+    '나른한 오후, 카페 갈까요? ☕\n분위기 좋은 곳 알아요',
+    '오늘 오후는 뭐하고 싶으세요?\n뭐든 찾아드릴게요!',
+    '점심 먹고 나른하죠?\n산책하기 좋은 곳도 있어요 🚶',
+  ];
+
+  const evening = [ // 18-22
+    '오늘 저녁은 뭐 먹을까요? 🌙\n맛있는 곳 찾아볼게요',
+    '퇴근하셨어요? 수고했어요! 🙌\n맛있는 거 먹으러 가요',
+    '저녁인데 한 잔 할까요? 🍷\n분위기 좋은 곳 알려드릴게요',
+    '오늘 하루도 고생했어요!\n맛있는 걸로 보상해요 ✨',
+    '저녁 약속 있으세요?\n괜찮은 곳 추천해드릴까요?',
+    '뭔가 먹고 싶은데\n뭘 먹을지 모르겠죠? 도와드릴게요!',
+  ];
+
+  const night = [ // 23-5
+    '이 밤에 뭐 먹을까요? 🌃\n야식 찾아드릴게요',
+    '늦은 밤이네요!\n아직 열린 곳 찾아볼까요?',
+    '밤에 출출하죠?\n맛있는 야식 추천해드릴게요 🍜',
+    '잠이 안 오시나요?\n카페나 바 어때요?',
+    '이 시간에도 갈 곳 있어요!\n뭘 찾으세요?',
+  ];
+
+  let pool;
+  if (hour >= 6 && hour < 12) pool = morning;
+  else if (hour >= 12 && hour < 18) pool = afternoon;
+  else if (hour >= 18 && hour < 23) pool = evening;
+  else pool = night;
+
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 const getLoadingMessages = (query) => query
   ? [`"${query}" 살펴보는 중`, '관련 장소 찾는 중...', '딱 맞는 곳 고르는 중', '거의 다 됐어요']
@@ -120,8 +153,7 @@ export default function SearchResultsPage() {
   const loadingMessages = getLoadingMessages(loadingQuery);
 
   // 랜덤 환영 메시지 (마운트 시 1회)
-  const welcomeMessage = useMemo(() =>
-    WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)], []);
+  const welcomeMessage = useMemo(() => getWelcomeMessage(), []);
 
   const buildAiMessage = useCallback((query, results, error, searchMessage) => {
     if (error) return `${error}\n다시 검색해볼까요?`;
