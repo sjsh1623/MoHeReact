@@ -587,3 +587,97 @@
   justify-content: center;
   padding: 20px;
 }
+
+/* ── Business Hours ─── */
+.hoursButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin: 8px 0 4px;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.hoursButton:active { background: #eee; }
+.hoursOpen { color: #16a34a; font-weight: 600; }
+.hoursClosed { color: #dc2626; font-weight: 600; }
+.hoursTime { color: #666; }
+
+/* Bottom Sheet */
+.sheetOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 9998;
+  -webkit-tap-highlight-color: transparent;
+}
+.hoursSheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 12px 24px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  z-index: 9999;
+  max-height: 60vh;
+  overflow-y: auto;
+  animation: slideUp 0.25s ease-out;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.sheetHandle {
+  width: 36px;
+  height: 4px;
+  background: #ddd;
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+.sheetTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 16px;
+}
+.hoursList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hoursRow {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f5;
+  gap: 12px;
+}
+.hoursRow:last-child { border-bottom: none; }
+.hoursToday {
+  background: #f0f9ff;
+  margin: 0 -24px;
+  padding: 12px 24px;
+  border-radius: 8px;
+}
+.hoursDay {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  min-width: 70px;
+}
+.hoursValue {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+}
+.hoursClosedText { color: #dc2626; }
+.hoursLastOrder {
+  font-size: 12px;
+  color: #999;
+}

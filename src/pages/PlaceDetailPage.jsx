@@ -92,6 +92,7 @@ export default function PlaceDetailPage({ place = null }) {
   const [selectedMenuIndex, setSelectedMenuIndex] = useState(0);
   const [showReviewsFullView, setShowReviewsFullView] = useState(false);
   const [focusedReviewId, setFocusedReviewId] = useState(null);
+  const [showHoursSheet, setShowHoursSheet] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const modalContentRef = useRef(null);
 
@@ -577,6 +578,34 @@ export default function PlaceDetailPage({ place = null }) {
           <span>{placeData.location || placeData.address}</span>
         </div>
 
+        {/* Business Hours Badge */}
+        {placeData.businessHours?.length > 0 && (() => {
+          const dayMap = {'일':0,'월':1,'화':2,'수':3,'목':4,'금':5,'토':6};
+          const koDays = ['일','월','화','수','목','금','토'];
+          const today = koDays[new Date().getDay()];
+          const todayHours = placeData.businessHours.find(h => h.day === today);
+          const now = new Date();
+          const nowStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+          const isOpen = todayHours?.open && todayHours?.close && nowStr >= todayHours.open && nowStr <= todayHours.close;
+
+          return (
+            <button
+              className={styles.hoursButton}
+              onClick={() => setShowHoursSheet && setShowHoursSheet(true)}
+            >
+              <span className={isOpen ? styles.hoursOpen : styles.hoursClosed}>
+                {isOpen ? '영업 중' : '영업 종료'}
+              </span>
+              {todayHours?.open && todayHours?.close && (
+                <span className={styles.hoursTime}>{todayHours.open} - {todayHours.close}</span>
+              )}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{marginLeft: 4}}>
+                <path d="M6 9l6 6 6-6" stroke="#999" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          );
+        })()}
+
         {/* Menu Gallery */}
         {(() => {
           const menusWithImages = menus.filter(m => m.imagePath);
@@ -761,6 +790,42 @@ export default function PlaceDetailPage({ place = null }) {
         url={window.location.href}
         imageUrl={images[0]}
       />
+
+      {/* Business Hours Bottom Sheet */}
+      {showHoursSheet && placeData.businessHours?.length > 0 && (
+        <>
+          <div className={styles.sheetOverlay} onClick={() => setShowHoursSheet(false)} />
+          <div className={styles.hoursSheet}>
+            <div className={styles.sheetHandle} />
+            <h3 className={styles.sheetTitle}>영업시간</h3>
+            <div className={styles.hoursList}>
+              {['월','화','수','목','금','토','일'].map(day => {
+                const h = placeData.businessHours.find(bh => bh.day === day);
+                const koDays = ['일','월','화','수','목','금','토'];
+                const isToday = day === koDays[new Date().getDay()];
+                if (!h) return (
+                  <div key={day} className={`${styles.hoursRow} ${isToday ? styles.hoursToday : ''}`}>
+                    <span className={styles.hoursDay}>{day}</span>
+                    <span className={styles.hoursValue}>정보 없음</span>
+                  </div>
+                );
+                const isClosed = h.description?.includes('휴무') || (!h.open && !h.close);
+                return (
+                  <div key={day} className={`${styles.hoursRow} ${isToday ? styles.hoursToday : ''}`}>
+                    <span className={styles.hoursDay}>{day}{isToday ? ' (오늘)' : ''}</span>
+                    <span className={`${styles.hoursValue} ${isClosed ? styles.hoursClosedText : ''}`}>
+                      {isClosed ? (h.description || '휴무') : `${h.open || '?'} - ${h.close || '?'}`}
+                    </span>
+                    {h.lastOrderMinutes && (
+                      <span className={styles.hoursLastOrder}>L.O {h.lastOrderMinutes}분 전</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
