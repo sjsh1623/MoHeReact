@@ -592,9 +592,9 @@
 .placeSubInfo {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: flex-end;
+  gap: 8px;
   margin-top: 2px;
-  flex-wrap: wrap;
 }
 
 /* ── Business Hours Chip ─── */
