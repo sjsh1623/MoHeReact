@@ -570,41 +570,33 @@ export default function PlaceDetailPage({ place = null }) {
           </div>
         </div>
 
-        <div className={styles.location}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="7.33325" r="2" stroke="#7D848D" strokeWidth="1.5"/>
-            <path d="M14 7.25918C14 10.532 10.25 14.6666 8 14.6666C5.75 14.6666 2 10.532 2 7.25918C2 3.98638 4.68629 1.33325 8 1.33325C11.3137 1.33325 14 3.98638 14 7.25918Z" stroke="#7D848D" strokeWidth="1.5"/>
-          </svg>
-          <span>{placeData.location || placeData.address}</span>
+        <div className={styles.placeInfoRow}>
+          <div className={styles.location}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="7.33325" r="2" stroke="#7D848D" strokeWidth="1.5"/>
+              <path d="M14 7.25918C14 10.532 10.25 14.6666 8 14.6666C5.75 14.6666 2 10.532 2 7.25918C2 3.98638 4.68629 1.33325 8 1.33325C11.3137 1.33325 14 3.98638 14 7.25918Z" stroke="#7D848D" strokeWidth="1.5"/>
+            </svg>
+            <span>{placeData.location || placeData.address}</span>
+          </div>
+          {placeData.businessHours?.length > 0 && (() => {
+            const koDays = ['일','월','화','수','목','금','토'];
+            const today = koDays[new Date().getDay()];
+            const todayHours = placeData.businessHours.find(h => h.day === today);
+            const now = new Date();
+            const nowStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            const isOpen = todayHours?.open && todayHours?.close && nowStr >= todayHours.open && nowStr <= todayHours.close;
+
+            return (
+              <button className={styles.hoursChip} onClick={() => setShowHoursSheet(true)}>
+                <span className={styles.hoursDot} style={{background: isOpen ? '#16a34a' : '#dc2626'}} />
+                <span className={styles.hoursChipText}>{isOpen ? '영업 중' : '영업 종료'}</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="#999" strokeWidth="2.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            );
+          })()}
         </div>
-
-        {/* Business Hours Badge */}
-        {placeData.businessHours?.length > 0 && (() => {
-          const dayMap = {'일':0,'월':1,'화':2,'수':3,'목':4,'금':5,'토':6};
-          const koDays = ['일','월','화','수','목','금','토'];
-          const today = koDays[new Date().getDay()];
-          const todayHours = placeData.businessHours.find(h => h.day === today);
-          const now = new Date();
-          const nowStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-          const isOpen = todayHours?.open && todayHours?.close && nowStr >= todayHours.open && nowStr <= todayHours.close;
-
-          return (
-            <button
-              className={styles.hoursButton}
-              onClick={() => setShowHoursSheet && setShowHoursSheet(true)}
-            >
-              <span className={isOpen ? styles.hoursOpen : styles.hoursClosed}>
-                {isOpen ? '영업 중' : '영업 종료'}
-              </span>
-              {todayHours?.open && todayHours?.close && (
-                <span className={styles.hoursTime}>{todayHours.open} - {todayHours.close}</span>
-              )}
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{marginLeft: 4}}>
-                <path d="M6 9l6 6 6-6" stroke="#999" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
-          );
-        })()}
 
         {/* Menu Gallery */}
         {(() => {
@@ -791,8 +783,8 @@ export default function PlaceDetailPage({ place = null }) {
         imageUrl={images[0]}
       />
 
-      {/* Business Hours Bottom Sheet */}
-      {showHoursSheet && placeData.businessHours?.length > 0 && (
+      {/* Business Hours Bottom Sheet — Portal로 body에 직접 렌더 */}
+      {showHoursSheet && placeData.businessHours?.length > 0 && createPortal(
         <>
           <div className={styles.sheetOverlay} onClick={() => setShowHoursSheet(false)} />
           <div className={styles.hoursSheet}>
@@ -824,7 +816,8 @@ export default function PlaceDetailPage({ place = null }) {
               })}
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );

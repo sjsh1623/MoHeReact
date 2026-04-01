@@ -588,25 +588,41 @@
   padding: 20px;
 }
 
-/* ── Business Hours ─── */
-.hoursButton {
+/* ── Place Info Row ─── */
+.placeInfoRow {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  padding: 8px 14px;
-  margin: 8px 0 4px;
-  background: #f5f5f5;
-  border: none;
-  border-radius: 20px;
+}
+
+/* ── Business Hours Chip ─── */
+.hoursChip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: none;
+  border: 1px solid #e8e8e8;
+  border-radius: 16px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-family: inherit;
+  flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
 }
-.hoursButton:active { background: #eee; }
-.hoursOpen { color: #16a34a; font-weight: 600; }
-.hoursClosed { color: #dc2626; font-weight: 600; }
-.hoursTime { color: #666; }
+.hoursChip:active { background: #f5f5f5; }
+.hoursDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.hoursChipText {
+  color: #444;
+  font-weight: 500;
+  white-space: nowrap;
+}
 
 /* Bottom Sheet */
 .sheetOverlay {
