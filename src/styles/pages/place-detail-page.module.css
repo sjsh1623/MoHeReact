@@ -588,12 +588,13 @@
   padding: 20px;
 }
 
-/* ── Place Info Row ─── */
-.placeInfoRow {
+/* ── Place Sub Info (위치 + 영업시간, 별점 바로 아래) ─── */
+.placeSubInfo {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
+  margin-top: 2px;
+  flex-wrap: wrap;
 }
 
 /* ── Business Hours Chip ─── */
@@ -621,6 +622,11 @@
 .hoursChipText {
   color: #444;
   font-weight: 500;
+  white-space: nowrap;
+}
+.hoursChipTime {
+  color: #999;
+  font-size: 11px;
   white-space: nowrap;
 }
 

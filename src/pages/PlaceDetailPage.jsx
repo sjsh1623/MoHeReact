@@ -570,7 +570,7 @@ export default function PlaceDetailPage({ place = null }) {
           </div>
         </div>
 
-        <div className={styles.placeInfoRow}>
+        <div className={styles.placeSubInfo}>
           <div className={styles.location}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="7.33325" r="2" stroke="#7D848D" strokeWidth="1.5"/>
@@ -590,8 +590,9 @@ export default function PlaceDetailPage({ place = null }) {
               <button className={styles.hoursChip} onClick={() => setShowHoursSheet(true)}>
                 <span className={styles.hoursDot} style={{background: isOpen ? '#16a34a' : '#dc2626'}} />
                 <span className={styles.hoursChipText}>{isOpen ? '영업 중' : '영업 종료'}</span>
+                {todayHours?.open && <span className={styles.hoursChipTime}>{todayHours.open} - {todayHours.close}</span>}
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                  <path d="M6 9l6 6 6-6" stroke="#999" strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M6 9l6 6 6-6" stroke="#bbb" strokeWidth="2.5" strokeLinecap="round"/>
                 </svg>
               </button>
             );
