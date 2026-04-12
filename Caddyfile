@@ -35,7 +35,8 @@ mohe.today {
 	}
 
 	# Admin Dashboard - proxy to MoheAdmin React app
-	handle /admin/* {
+	@admin path /admin /admin/*
+	handle @admin {
 		reverse_proxy mohe-admin-app:80
 	}
 

@@ -120,3 +120,33 @@ src/components/
 - Sophisticated animation and transition system
 - Complete preference management infrastructure
 - Mobile-first responsive design implemented
+
+## Analytics Tracking
+
+**Service**: `src/services/analyticsService.js`
+- `trackPageview(pagePath)` — fire-and-forget POST to `/api/analytics/pageview`
+- Payload: `{ sessionId, pagePath, referrer }`
+- Silently swallows errors — analytics must never break UX
+
+**Session ID**:
+- Key: `sessionStorage.getItem('mohe_session_id')`
+- Format: `sess_<timestamp>_<random>` (random is `Math.random().toString(36).substring(2,9)`)
+- Generated lazily on first call, persists for the browser tab session
+
+**Debouncing**:
+- Module-level `lastTrackedPath` + `lastTrackedTime` guard
+- Skips duplicate events to the same path within `DEBOUNCE_MS = 1000` (1 s)
+- Prevents double-firing from StrictMode double-invoke and rapid programmatic navigation
+
+**Integration Point**: `src/components/ui/transitions/AnimatedRoutes.jsx` calls `trackPageview(location.pathname)` inside the route-change effect (around line 185), so every successful route transition records a pageview. No manual instrumentation on individual pages.
+
+## Home Categories (Time/Weather-based)
+
+The home recommendation rows are computed server-side now. Backend: `GET /api/categories/home?lat=&lon=&mbti=` (see `MoheSpring/CLAUDE.md`).
+
+**Frontend contract**:
+- Hook: `src/hooks/useHomeCategories.js`
+- For each category row, the hook reads `displayTitle` from the backend response and uses it directly as the section title. The old client-side random-title generation has been removed.
+- Fallback: `src/constants/categoryData.js#getTimeBasedSortedCategories()` now returns neutral default titles (no randomization) for categories that the backend did not assign a priority title to. This guarantees deterministic UI even if the backend response is missing `displayTitle`.
+
+**Key change**: Titles like `"모닝 커피 한 잔 어때요?"` originate from backend (`TIME_CATEGORY_TITLES` in `CategoryRecommendationService.java`), not from the frontend. Do not add random title logic here.

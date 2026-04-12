@@ -93,6 +93,8 @@ export default function PlaceDetailPage({ place = null }) {
   const [showReviewsFullView, setShowReviewsFullView] = useState(false);
   const [focusedReviewId, setFocusedReviewId] = useState(null);
   const [showHoursSheet, setShowHoursSheet] = useState(false);
+  const [showAddressSheet, setShowAddressSheet] = useState(false);
+  const [copyToast, setCopyToast] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const modalContentRef = useRef(null);
 
@@ -269,7 +271,12 @@ export default function PlaceDetailPage({ place = null }) {
         const response = await placeService.getPlaceById(id);
         if (response.success && response.data.place) {
           const normalizedPlace = normalizePlaceImages(response.data.place);
-          setPlaceData(normalizedPlace);
+          // API 응답에 없는 필드는 preloadedData에서 보존
+          setPlaceData(prev => ({
+            ...prev,
+            ...normalizedPlace,
+            distance: normalizedPlace.distance || prev?.distance,
+          }));
 
           if (response.data.reviews?.length > 0) {
             setReviews(response.data.reviews);
@@ -562,23 +569,40 @@ export default function PlaceDetailPage({ place = null }) {
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{placeData.name || placeData.title}</h1>
           <div className={styles.rating}>
-            <svg width="14" height="14" viewBox="0 0 14 13" fill="none">
-              <path d="M6.04914 0.927051C6.21045 0.429825 6.91123 0.429825 7.07254 0.927051L8.25254 4.57354C8.32461 4.79648 8.53119 4.94755 8.76531 4.94755H12.5832C13.1047 4.94755 13.3214 5.61782 12.8997 5.92484L9.81085 8.17764C9.62207 8.31511 9.54258 8.55947 9.61465 8.78241L10.7947 12.4289C10.956 12.9261 10.3841 13.3409 9.96241 13.0339L6.87355 10.7811C6.68478 10.6436 6.4369 10.6436 6.24813 10.7811L3.15927 13.0339C2.7376 13.3409 2.16566 12.9261 2.32697 12.4289L3.50697 8.78241C3.57904 8.55947 3.49955 8.31511 3.31078 8.17764L0.221913 5.92484C-0.199755 5.61782 0.0169654 4.94755 0.538474 4.94755H4.35637C4.59049 4.94755 4.79707 4.79648 4.86914 4.57354L6.04914 0.927051Z" fill="#FFD336"/>
-            </svg>
-            <span>{Number(placeData.rating).toFixed(1)}</span>
-            <span className={styles.reviewCount}>({placeData.reviewCount || placeData.userRatingsTotal || 0})</span>
+            {placeData.rating && Number(placeData.rating) > 0 ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 14 13" fill="none">
+                  <path d="M6.04914 0.927051C6.21045 0.429825 6.91123 0.429825 7.07254 0.927051L8.25254 4.57354C8.32461 4.79648 8.53119 4.94755 8.76531 4.94755H12.5832C13.1047 4.94755 13.3214 5.61782 12.8997 5.92484L9.81085 8.17764C9.62207 8.31511 9.54258 8.55947 9.61465 8.78241L10.7947 12.4289C10.956 12.9261 10.3841 13.3409 9.96241 13.0339L6.87355 10.7811C6.68478 10.6436 6.4369 10.6436 6.24813 10.7811L3.15927 13.0339C2.7376 13.3409 2.16566 12.9261 2.32697 12.4289L3.50697 8.78241C3.57904 8.55947 3.49955 8.31511 3.31078 8.17764L0.221913 5.92484C-0.199755 5.61782 0.0169654 4.94755 0.538474 4.94755H4.35637C4.59049 4.94755 4.79707 4.79648 4.86914 4.57354L6.04914 0.927051Z" fill="#FFD336"/>
+                </svg>
+                <span>{Number(placeData.rating).toFixed(1)}</span>
+                {(placeData.reviewCount > 0 || reviews.length > 0) && (
+                  <span className={styles.reviewCount}>({placeData.reviewCount || reviews.length})</span>
+                )}
+              </>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 14 13" fill="none">
+                <path d="M6.04914 0.927051C6.21045 0.429825 6.91123 0.429825 7.07254 0.927051L8.25254 4.57354C8.32461 4.79648 8.53119 4.94755 8.76531 4.94755H12.5832C13.1047 4.94755 13.3214 5.61782 12.8997 5.92484L9.81085 8.17764C9.62207 8.31511 9.54258 8.55947 9.61465 8.78241L10.7947 12.4289C10.956 12.9261 10.3841 13.3409 9.96241 13.0339L6.87355 10.7811C6.68478 10.6436 6.4369 10.6436 6.24813 10.7811L3.15927 13.0339C2.7376 13.3409 2.16566 12.9261 2.32697 12.4289L3.50697 8.78241C3.57904 8.55947 3.49955 8.31511 3.31078 8.17764L0.221913 5.92484C-0.199755 5.61782 0.0169654 4.94755 0.538474 4.94755H4.35637C4.59049 4.94755 4.79707 4.79648 4.86914 4.57354L6.04914 0.927051Z" fill="none" stroke="#ccc" strokeWidth="0.6" strokeDasharray="2 1"/>
+              </svg>
+            )}
+            {placeData.distance > 0 && (
+              <span className={styles.distanceBadge}>{placeData.distance < 0.1 ? placeData.distance.toFixed(2) : placeData.distance.toFixed(1)}km</span>
+            )}
           </div>
         </div>
 
-        <div className={styles.placeSubInfo}>
-          <div className={styles.location}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="7.33325" r="2" stroke="#7D848D" strokeWidth="1.5"/>
-              <path d="M14 7.25918C14 10.532 10.25 14.6666 8 14.6666C5.75 14.6666 2 10.532 2 7.25918C2 3.98638 4.68629 1.33325 8 1.33325C11.3137 1.33325 14 3.98638 14 7.25918Z" stroke="#7D848D" strokeWidth="1.5"/>
+        {/* 정보 리스트 (네이버 스타일) */}
+        <div className={styles.infoList}>
+          {/* 주소 */}
+          <button className={styles.infoRow} onClick={() => setShowAddressSheet(true)}>
+            <svg className={styles.infoIcon} width="18" height="18" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="7.33" r="2" stroke="#7D848D" strokeWidth="1.4"/>
+              <path d="M14 7.26C14 10.53 10.25 14.67 8 14.67C5.75 14.67 2 10.53 2 7.26C2 3.99 4.69 1.33 8 1.33C11.31 1.33 14 3.99 14 7.26Z" stroke="#7D848D" strokeWidth="1.4"/>
             </svg>
-            <span>{placeData.location || placeData.address}</span>
-          </div>
-          {placeData.businessHours?.length > 0 && (() => {
+            <span className={styles.infoText}>{placeData.fullAddress || placeData.address || placeData.location}</span>
+          </button>
+
+          {/* 영업시간 */}
+          {placeData.businessHours?.length > 0 ? (() => {
             const koDays = ['일','월','화','수','목','금','토'];
             const today = koDays[new Date().getDay()];
             const todayHours = placeData.businessHours.find(h => h.day === today);
@@ -587,16 +611,40 @@ export default function PlaceDetailPage({ place = null }) {
             const isOpen = todayHours?.open && todayHours?.close && nowStr >= todayHours.open && nowStr <= todayHours.close;
 
             return (
-              <button className={styles.hoursChip} onClick={() => setShowHoursSheet(true)}>
-                <span className={styles.hoursDot} style={{background: isOpen ? '#16a34a' : '#dc2626'}} />
-                <span className={styles.hoursChipText}>{isOpen ? '영업 중' : '영업 종료'}</span>
-                {todayHours?.open && <span className={styles.hoursChipTime}>{todayHours.open} - {todayHours.close}</span>}
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                  <path d="M6 9l6 6 6-6" stroke="#bbb" strokeWidth="2.5" strokeLinecap="round"/>
+              <button className={styles.infoRow} onClick={() => setShowHoursSheet(true)}>
+                <svg className={styles.infoIcon} width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="#7D848D" strokeWidth="1.6"/>
+                  <path d="M12 7.5V12L15 14" stroke="#7D848D" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span className={`${styles.infoText} ${styles.hoursStatus}`}>
+                  <span className={styles.hoursDot} style={{background: isOpen ? '#16a34a' : '#dc2626'}} />
+                  <span style={{color: isOpen ? '#16a34a' : '#dc2626', fontWeight: 600}}>{isOpen ? '영업 중' : '영업 종료'}</span>
+                  {todayHours?.open && <span className={styles.hoursTime}>{todayHours.open} - {todayHours.close}</span>}
+                </span>
+                <svg className={styles.infoChevron} width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="#ccc" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
               </button>
             );
-          })()}
+          })() : (
+            <div className={styles.infoRow}>
+              <svg className={styles.infoIcon} width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="#bbb" strokeWidth="1.6" strokeDasharray="3 2"/>
+                <path d="M12 7.5V12L15 14" stroke="#bbb" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className={styles.infoTextMuted}>영업시간 정보 없음</span>
+            </div>
+          )}
+
+          {/* 전화번호 */}
+          {placeData.phone && (
+            <a href={`tel:${placeData.phone}`} className={styles.infoRow}>
+              <svg className={styles.infoIcon} width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.81.36 1.6.68 2.35a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.75.32 1.54.55 2.35.68A2 2 0 0122 16.92z" stroke="#7D848D" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className={styles.infoText}>{placeData.phone}</span>
+            </a>
+          )}
         </div>
 
         {/* Menu Gallery */}
@@ -783,6 +831,81 @@ export default function PlaceDetailPage({ place = null }) {
         url={window.location.href}
         imageUrl={images[0]}
       />
+
+      {/* Address Action Sheet */}
+      {showAddressSheet && createPortal(
+        <>
+          <div className={styles.sheetOverlay} onClick={() => setShowAddressSheet(false)} />
+          <div className={styles.addressSheet}>
+            <div className={styles.sheetHandle} />
+            <div className={styles.addressSheetTitle}>{placeData.fullAddress || placeData.address}</div>
+            <div className={styles.addressActions}>
+              <button className={styles.addressAction} onClick={() => {
+                const text = placeData.fullAddress || placeData.address || '';
+                if (navigator.clipboard && window.isSecureContext) {
+                  navigator.clipboard.writeText(text);
+                } else {
+                  const ta = document.createElement('textarea');
+                  ta.value = text;
+                  ta.style.position = 'fixed';
+                  ta.style.left = '-9999px';
+                  document.body.appendChild(ta);
+                  ta.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(ta);
+                }
+                setShowAddressSheet(false);
+                setCopyToast(true);
+                setTimeout(() => setCopyToast(false), 2000);
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <rect x="9" y="9" width="13" height="13" rx="2" stroke="#333" strokeWidth="1.6"/>
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="#333" strokeWidth="1.6"/>
+                </svg>
+                <span>주소 복사</span>
+              </button>
+              <button className={styles.addressAction} onClick={() => {
+                setShowAddressSheet(false);
+                const lat = placeData.latitude;
+                const lng = placeData.longitude;
+                const name = encodeURIComponent(placeData.name || '');
+                const appUrl = `nmap://place?lat=${lat}&lng=${lng}&name=${name}&appname=com.mohe.app`;
+                const webUrl = `https://map.naver.com/v5/search/${encodeURIComponent((placeData.name || '') + ' ' + (placeData.fullAddress || placeData.address || ''))}`;
+                window.location.href = appUrl;
+                setTimeout(() => { window.open(webUrl, '_blank'); }, 1500);
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" fill="#1EC800"/>
+                </svg>
+                <span>네이버 지도</span>
+              </button>
+              <button className={styles.addressAction} onClick={() => {
+                setShowAddressSheet(false);
+                const lat = placeData.latitude;
+                const lng = placeData.longitude;
+                const name = encodeURIComponent(placeData.name || '');
+                const appUrl = `kakaomap://look?p=${lat},${lng}`;
+                const webUrl = `https://map.kakao.com/link/map/${name},${lat},${lng}`;
+                window.location.href = appUrl;
+                setTimeout(() => { window.open(webUrl, '_blank'); }, 1500);
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" fill="#FEE500"/>
+                  <path d="M12 6.5c-3.59 0-6.5 2.24-6.5 5s2.91 5 6.5 5c.39 0 .77-.03 1.14-.09l2.77 1.84-.74-2.77c1.82-1 2.83-2.42 2.83-3.98 0-2.76-2.91-5-6.5-5z" fill="#3C1E1E"/>
+                </svg>
+                <span>카카오맵</span>
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
+
+      {/* Copy Toast */}
+      {copyToast && createPortal(
+        <div className={styles.copyToast}>주소가 복사되었습니다</div>,
+        document.body
+      )}
 
       {/* Business Hours Bottom Sheet — Portal로 body에 직접 렌더 */}
       {showHoursSheet && placeData.businessHours?.length > 0 && createPortal(

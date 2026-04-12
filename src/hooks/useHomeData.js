@@ -1,42 +1,90 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGeolocation, useLocationStorage } from '@/hooks/useGeolocation';
 import { weatherService, contextualRecommendationService, bookmarkService, addressService, guestRecommendationService, placeService, homeService } from '@/services/apiService';
 import { authService } from '@/services/authService';
 import { formatPlaceAddress, formatDisplayAddress } from '@/utils/addressUtils';
 import { normalizePlaceImages } from '@/utils/image';
 
+// ── sessionStorage 캐시 (30분 TTL) ───
+const CACHE_KEY = 'mohe_home_cache';
+const CACHE_TTL = 10 * 60 * 1000; // 10분
+
+function saveCache(data) {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, _ts: Date.now() }));
+  } catch { /* quota exceeded 등 무시 */ }
+}
+
+function loadCache() {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed._ts > CACHE_TTL) {
+      sessionStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch { return null; }
+}
+
+function clearCache() {
+  sessionStorage.removeItem(CACHE_KEY);
+}
+
 /**
  * Custom hook that manages all data loading for the HomePage.
- * Handles user initialization, location, weather, recommendations,
- * popular places, nearby places, home images, and bookmarks.
- *
- * @param {Object|null} currentLocation - { latitude, longitude, address }
- * @param {Function} setCurrentLocation - state setter for currentLocation
- * @returns {Object} All home page data and loading states
+ * - sessionStorage 캐시로 뒤로가기 시 즉시 렌더
+ * - 30분 초과 또는 새로고침(F5) 시 API 재호출
+ * - 위치 변경 시에만 데이터 갱신
  */
 export function useHomeData(currentLocation, setCurrentLocation) {
   const { requestLocation, loading: locationLoading } = useGeolocation();
   const { saveLocation, getStoredLocation } = useLocationStorage();
 
-  const [weather, setWeather] = useState(null);
-  const [recommendations, setRecommendations] = useState([]);
+  // 캐시 복원
+  const cached = useRef(loadCache());
+  // 캐시에 실제 데이터가 있는지 확인 (빈 배열만 있으면 무효)
+  const hasCachedData = cached.current !== null &&
+    ((cached.current.recommendations?.length > 0) || (cached.current.popularPlaces?.length > 0));
+
+  const [weather, setWeather] = useState(cached.current?.weather || null);
+  const [recommendations, setRecommendations] = useState(cached.current?.recommendations || []);
   const [locationPermissionRequested, setLocationPermissionRequested] = useState(false);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(() => authService.getCurrentUser());
-  const [popularPlaces, setPopularPlaces] = useState([]);
-  const [homeImages, setHomeImages] = useState([]);
-  const [nearbyPlaces, setNearbyPlaces] = useState([]);
+  const [popularPlaces, setPopularPlaces] = useState(cached.current?.popularPlaces || []);
+  const [homeImages, setHomeImages] = useState(cached.current?.homeImages || []);
+  const [nearbyPlaces, setNearbyPlaces] = useState(cached.current?.nearbyPlaces || []);
   const [addressLoading, setAddressLoading] = useState(!getStoredLocation()?.address);
-  const [dynamicMessage, setDynamicMessage] = useState('지금 가기 좋은 플레이스');
+  const [dynamicMessage, setDynamicMessage] = useState(cached.current?.dynamicMessage || '지금 가기 좋은 플레이스');
   const [showLoginSheet, setShowLoginSheet] = useState(false);
 
-  // Section-level loading states for progressive rendering
   const [sectionsLoading, setSectionsLoading] = useState({
-    recommendations: true,
-    nearby: true,
-    popular: true,
-    homeImages: true,
+    recommendations: !hasCachedData,
+    nearby: !hasCachedData,
+    popular: !hasCachedData,
+    homeImages: !hasCachedData,
   });
+
+  // 각 섹션별 독립적인 loaded 플래그 (race condition 방지)
+  const recommendationsLoadedRef = useRef(hasCachedData);
+  const nearbyLoadedRef = useRef(hasCachedData);
+  const popularLoadedRef = useRef(hasCachedData);
+  const homeImagesLoadedRef = useRef(hasCachedData);
+
+  // ── 캐시 자동 저장 ───
+  useEffect(() => {
+    if (!recommendations.length && !popularPlaces.length && !nearbyPlaces.length) return;
+    saveCache({
+      weather,
+      recommendations,
+      popularPlaces,
+      nearbyPlaces,
+      homeImages,
+      dynamicMessage,
+    });
+  }, [weather, recommendations, popularPlaces, nearbyPlaces, homeImages, dynamicMessage]);
 
   // Resolve address from coordinates
   const resolveAddress = async (latitude, longitude) => {
@@ -115,7 +163,7 @@ export function useHomeData(currentLocation, setCurrentLocation) {
     };
   }, []);
 
-  // Initialize app only once on mount
+  // ── Initialize app ───
   useEffect(() => {
     let isMounted = true;
 
@@ -144,10 +192,8 @@ export function useHomeData(currentLocation, setCurrentLocation) {
 
         if (!currentLocation) {
           await initializeLocationData();
-        } else {
-          if (!weather) {
-            loadWeatherData(currentLocation.latitude, currentLocation.longitude);
-          }
+        } else if (!weather) {
+          loadWeatherData(currentLocation.latitude, currentLocation.longitude);
         }
       } catch (error) {
         if (isMounted) {
@@ -158,77 +204,78 @@ export function useHomeData(currentLocation, setCurrentLocation) {
     };
 
     const initializeLocationData = async () => {
-      if (!isMounted) return;
+      if (!isMounted || locationPermissionRequested) return;
+      setLocationPermissionRequested(true);
+      setAddressLoading(true);
 
-      const storedLocation = getStoredLocation();
-      if (storedLocation) {
-        if (isMounted) {
-          console.log('📍 Setting location from storage:', storedLocation);
-          setCurrentLocation(storedLocation);
-
-          if (storedLocation.address) {
-            setAddressLoading(false);
-          } else if (storedLocation.latitude && storedLocation.longitude) {
-            await resolveAddress(storedLocation.latitude, storedLocation.longitude);
-          }
-
-          await loadWeatherData(storedLocation.latitude, storedLocation.longitude);
-        }
-        return;
+      // 1단계: 캐시된 위치로 즉시 데이터 로드 시작
+      const cachedLoc = getStoredLocation();
+      if (cachedLoc?.latitude && cachedLoc?.longitude) {
+        setCurrentLocation(cachedLoc);
+        if (cachedLoc.address) setAddressLoading(false);
       }
 
-      if (!locationPermissionRequested) {
-        setLocationPermissionRequested(true);
-        setAddressLoading(true);
-        try {
-          const locationData = await requestLocation();
+      // 2단계: 새 위치 요청
+      try {
+        const locationData = await requestLocation();
+        if (!isMounted) return;
 
-          if (locationData &&
-              typeof locationData.latitude === 'number' &&
-              typeof locationData.longitude === 'number' &&
-              isMounted) {
+        if (locationData?.latitude && locationData?.longitude) {
+          const isSame = cachedLoc &&
+            Math.abs(locationData.latitude - cachedLoc.latitude) < 0.001 &&
+            Math.abs(locationData.longitude - cachedLoc.longitude) < 0.001;
+
+          if (!isSame) {
+            // 위치 변경 → 캐시 무효화, 데이터 새로 로드
+            clearCache();
+            recommendationsLoadedRef.current = false;
+            nearbyLoadedRef.current = false;
+            popularLoadedRef.current = false;
+            homeImagesLoadedRef.current = false;
             setCurrentLocation(locationData);
-            fetch(`/api/location/register-user-area?lat=${locationData.latitude}&lng=${locationData.longitude}`, { method: 'POST' })
-              .catch(() => {});
-            await resolveAddress(locationData.latitude, locationData.longitude);
-            await loadWeatherData(locationData.latitude, locationData.longitude);
-          } else if (isMounted) {
-            throw new Error('Invalid location data received');
           }
-        } catch (error) {
-          console.warn('Failed to get location:', error);
-          const defaultLocation = {
-            latitude: 37.5665,
-            longitude: 126.9780,
-            address: null,
-          };
-          if (isMounted) {
-            setCurrentLocation(defaultLocation);
-            await resolveAddress(defaultLocation.latitude, defaultLocation.longitude);
-            await loadWeatherData(defaultLocation.latitude, defaultLocation.longitude);
-          }
+          saveLocation(locationData);
+          Promise.all([
+            resolveAddress(locationData.latitude, locationData.longitude),
+            loadWeatherData(locationData.latitude, locationData.longitude),
+            fetch(`/api/location/register-user-area?lat=${locationData.latitude}&lng=${locationData.longitude}`, { method: 'POST' }).catch(() => {}),
+          ]);
+        } else {
+          throw new Error('Invalid location data');
+        }
+      } catch (error) {
+        console.warn('Failed to get location:', error);
+        if (!cachedLoc && isMounted) {
+          const fallback = { latitude: 37.5665, longitude: 126.9780, address: null };
+          setCurrentLocation(fallback);
+          Promise.all([
+            resolveAddress(fallback.latitude, fallback.longitude),
+            loadWeatherData(fallback.latitude, fallback.longitude),
+          ]);
         }
       }
     };
 
     initializeApp();
 
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
-  // Load recommendations when dependencies change
+  // ── Load recommendations ───
   useEffect(() => {
     let isMounted = true;
 
     const loadRecommendations = async () => {
       if (!currentLocation || !user || !isMounted) return;
+      // 이미 로드 완료했으면 스킵
+      if (recommendationsLoadedRef.current) return;
+
+      setSectionsLoading(prev => ({ ...prev, recommendations: true }));
 
       try {
         let recommendationsData = [];
 
-        if (user.isGuest && isMounted) {
+        if (user.isGuest) {
           try {
             const guestResponse = await guestRecommendationService.getGuestRecommendations(
               currentLocation.latitude,
@@ -236,82 +283,49 @@ export function useHomeData(currentLocation, setCurrentLocation) {
               { limit: 10, maxDistance: 55000 }
             );
 
-            console.log('HomePage: Guest response received:', guestResponse);
-            console.log('HomePage: Guest response success:', guestResponse.success);
-            console.log('HomePage: Guest response data length:', guestResponse.data?.length);
-
             if (guestResponse.dynamicMessage && isMounted) {
               setDynamicMessage(guestResponse.dynamicMessage);
-              console.log('🎨 Guest dynamic message set:', guestResponse.dynamicMessage);
             }
 
             if (guestResponse.success && guestResponse.data.length > 0) {
-              console.log('HomePage: Processing guest recommendations, count:', guestResponse.data.length);
-
               recommendationsData = guestResponse.data.map(place => {
                 const addressStr = place.shortAddress || place.address || '';
-                const formattedLocation = formatPlaceAddress(addressStr);
-
                 return normalizePlaceImages({
                   id: place.id,
                   title: place.name,
                   rating: place.rating,
-                  location: formattedLocation,
+                  reviewCount: place.reviewCount,
+                  distance: place.distance,
+                  location: formatPlaceAddress(addressStr),
                   image: place.image,
                   imageUrl: place.imageUrl,
                   images: place.images,
                   isBookmarked: place.isBookmarked,
-                  distance: 0,
                   weatherSuitability: place.weatherSuitability,
                   reasonWhy: place.description,
                 });
               });
-
-              console.log('HomePage: Mapped recommendations data:', recommendationsData);
-            } else {
-              console.log('HomePage: Guest recommendations failed or empty');
             }
           } catch (error) {
             console.warn('Guest recommendations failed:', error);
           }
         } else {
-          if (isMounted) {
-            try {
-              const goodToVisitData = await loadGoodToVisitRecommendations();
-              if (goodToVisitData.length > 0 && isMounted) {
-                recommendationsData = goodToVisitData;
-              }
-            } catch (error) {
-              console.warn('Good-to-visit recommendations failed:', error);
-            }
-          }
-
-          if (recommendationsData.length === 0 && isMounted) {
-            try {
-              const generalData = await loadGeneralRecommendations();
-              if (generalData.length > 0 && isMounted) {
-                recommendationsData = generalData;
-              }
-            } catch (error) {
-              console.warn('General recommendations failed:', error);
-            }
-          }
+          const [goodToVisitData, generalData] = await Promise.all([
+            loadGoodToVisitRecommendations().catch(() => []),
+            loadGeneralRecommendations().catch(() => []),
+          ]);
+          recommendationsData = goodToVisitData.length > 0 ? goodToVisitData : generalData;
         }
 
         if (!isMounted) return;
 
-        if (isMounted) {
-          console.log('HomePage: About to set recommendations with data:', recommendationsData);
-          setRecommendations(recommendationsData);
-          setSectionsLoading(prev => ({ ...prev, recommendations: false }));
-          console.log('HomePage: Successfully set recommendations');
-        }
+        setRecommendations(recommendationsData);
+        setSectionsLoading(prev => ({ ...prev, recommendations: false }));
+        recommendationsLoadedRef.current = true;
 
-        if (!user.isGuest && recommendationsData.length > 0 && isMounted) {
-          loadBookmarkStatus(recommendationsData).then(placesWithBookmarks => {
-            if (isMounted) {
-              setRecommendations(placesWithBookmarks);
-            }
+        if (!user.isGuest && recommendationsData.length > 0) {
+          loadBookmarkStatus(recommendationsData).then(withBookmarks => {
+            if (isMounted) setRecommendations(withBookmarks);
           });
         }
       } catch (error) {
@@ -319,13 +333,11 @@ export function useHomeData(currentLocation, setCurrentLocation) {
           console.error('Failed to load recommendations:', error);
           setRecommendations([]);
           setSectionsLoading(prev => ({ ...prev, recommendations: false }));
-
+          recommendationsLoadedRef.current = true;
           if (!user.isGuest) {
-            if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
-              setError('인증이 필요합니다. 다시 로그인해주세요.');
-            } else {
-              setError('추천 장소를 불러오는데 실패했습니다.');
-            }
+            setError(error.message?.includes('403')
+              ? '인증이 필요합니다. 다시 로그인해주세요.'
+              : '추천 장소를 불러오는데 실패했습니다.');
           }
         }
       }
@@ -333,86 +345,56 @@ export function useHomeData(currentLocation, setCurrentLocation) {
 
     const loadGoodToVisitRecommendations = async () => {
       if (!currentLocation) return [];
-
-      console.log('🎯 Calling good-to-visit API with location:', {
-        lat: currentLocation.latitude,
-        lon: currentLocation.longitude,
-      });
-
       const response = await contextualRecommendationService.getGoodToVisitRecommendations(
-        currentLocation.latitude,
-        currentLocation.longitude,
-        { limit: 10 }
+        currentLocation.latitude, currentLocation.longitude, { limit: 10 }
       );
-
-      console.log('✅ Good-to-visit API response:', response);
-
       const parsed = contextualRecommendationService.parseGoodToVisitResponse(response);
-      console.log('📝 Parsed response:', parsed);
-
-      if (parsed.dynamicMessage) {
-        setDynamicMessage(parsed.dynamicMessage);
-        console.log('🎨 Dynamic message set:', parsed.dynamicMessage);
-      }
-
-      if (parsed.places && parsed.places.length > 0) {
-        return parsed.places.map(place => {
-          const addressStr = place.shortAddress || place.address || '';
-          const formattedLocation = formatPlaceAddress(addressStr);
-
-          return normalizePlaceImages({
-            id: place.id,
-            title: place.name,
-            rating: place.rating,
-            location: formattedLocation,
-            image: place.imageUrl || place.images?.[0],
-            images: place.images,
-            isBookmarked: false,
-            distance: place.distance || 0,
-            weatherSuitability: place.weatherSuitability,
-            reasonWhy: place.reasonWhy,
-          });
-        });
+      if (parsed.dynamicMessage) setDynamicMessage(parsed.dynamicMessage);
+      if (parsed.places?.length > 0) {
+        return parsed.places.map(place => normalizePlaceImages({
+          id: place.id,
+          title: place.name,
+          rating: place.rating,
+          reviewCount: place.reviewCount,
+          distance: place.distance,
+          location: formatPlaceAddress(place.shortAddress || place.address || ''),
+          image: place.imageUrl || place.images?.[0],
+          images: place.images,
+          isBookmarked: false,
+          weatherSuitability: place.weatherSuitability,
+          reasonWhy: place.reasonWhy,
+        }));
       }
       return [];
     };
 
     const loadGeneralRecommendations = async () => {
       const response = await placeService.getRecommendations();
-
-      if (response.success && response.data.recommendations && response.data.recommendations.length > 0) {
-        return response.data.recommendations.map(place => {
-          const addressStr = place.shortAddress || place.address || '';
-          const formattedLocation = formatPlaceAddress(addressStr);
-
-          return normalizePlaceImages({
-            id: place.id,
-            title: place.name,
-            rating: place.rating,
-            location: formattedLocation,
-            image: place.imageUrl || place.image,
-            images: place.images,
-            isBookmarked: false,
-            distance: null,
-            score: place.score || null,
-            reasonWhy: place.reasonWhy || null,
-          });
-        });
+      if (response.success && response.data.recommendations?.length > 0) {
+        return response.data.recommendations.map(place => normalizePlaceImages({
+          id: place.id,
+          title: place.name,
+          rating: place.rating,
+          reviewCount: place.reviewCount,
+          distance: place.distance,
+          location: formatPlaceAddress(place.shortAddress || place.address || ''),
+          image: place.imageUrl || place.image,
+          images: place.images,
+          isBookmarked: false,
+          score: place.score || null,
+          reasonWhy: place.reasonWhy || null,
+        }));
       }
       return [];
     };
 
     const loadBookmarkStatus = async (places) => {
       if (user.isGuest || !places.length || !authService.isAuthenticated()) {
-        console.log('Skipping bookmark status checks for guest user or unauthenticated state');
         return places.map(place => ({ ...place, isBookmarked: false }));
       }
-
       try {
-        console.log('Loading bookmark status for', places.length, 'places');
         return await bookmarkService.applyBookmarkStatus(places);
-      } catch (error) {
-        console.warn('Failed to load bookmark status:', error);
+      } catch {
         return places;
       }
     };
@@ -421,231 +403,171 @@ export function useHomeData(currentLocation, setCurrentLocation) {
       loadRecommendations();
     }
 
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [currentLocation, user]);
 
-  // Load bookmark-based popular places
+  // ── Load bookmark-based popular places ───
   useEffect(() => {
     let isMounted = true;
 
     const loadBookmarkBasedPlaces = async () => {
       if (!currentLocation || !isMounted) return;
+      if (popularLoadedRef.current) return;
 
+      setSectionsLoading(prev => ({ ...prev, popular: true }));
       try {
-        console.log('Loading bookmark-based places for location:', currentLocation);
         const response = await placeService.getBookmarkBasedRecommendations(
-          currentLocation.latitude,
-          currentLocation.longitude,
+          currentLocation.latitude, currentLocation.longitude,
           { limit: 15, distance: 50.0 }
         );
 
         if (response.success && isMounted) {
-          console.log('✅ Bookmark-based places loaded:', response.data.length);
-          const transformedPlaces = response.data.map(place => {
-            const addressStr = place.shortAddress || place.address || '';
-            const formattedLocation = formatPlaceAddress(addressStr);
-
-            return normalizePlaceImages({
-              id: place.id,
-              name: place.name || place.title,
-              title: place.title || place.name,
-              rating: place.rating,
-              location: formattedLocation,
-              image: place.imageUrl || place.image,
-              images: place.images || [],
-              isBookmarked: place.isBookmarked || false,
-            });
-          });
+          const transformedPlaces = response.data.map(place => normalizePlaceImages({
+            id: place.id,
+            name: place.name || place.title,
+            title: place.title || place.name,
+            rating: place.rating,
+            location: formatPlaceAddress(place.shortAddress || place.address || ''),
+            image: place.imageUrl || place.image,
+            images: place.images || [],
+            isBookmarked: place.isBookmarked || false,
+          }));
 
           setPopularPlaces(transformedPlaces);
           setSectionsLoading(prev => ({ ...prev, popular: false }));
+          popularLoadedRef.current = true;
 
           if (authService.isAuthenticated()) {
-            bookmarkService.applyBookmarkStatus(transformedPlaces).then(placesWithBookmarks => {
-              if (isMounted) {
-                setPopularPlaces(placesWithBookmarks);
-              }
+            bookmarkService.applyBookmarkStatus(transformedPlaces).then(withBookmarks => {
+              if (isMounted) setPopularPlaces(withBookmarks);
             });
           }
         } else if (isMounted) {
-          console.warn('⚠️ Bookmark-based places API returned no success:', response);
           setPopularPlaces([]);
           setSectionsLoading(prev => ({ ...prev, popular: false }));
+          popularLoadedRef.current = true;
         }
-      } catch (error) {
-        console.warn('⚠️ Bookmark-based places failed, continuing without them:', error);
+      } catch {
         if (isMounted) {
           setPopularPlaces([]);
           setSectionsLoading(prev => ({ ...prev, popular: false }));
+          popularLoadedRef.current = true;
         }
       }
     };
 
-    if (currentLocation) {
-      loadBookmarkBasedPlaces();
-    }
-
-    return () => {
-      isMounted = false;
-    };
+    if (currentLocation) loadBookmarkBasedPlaces();
+    return () => { isMounted = false; };
   }, [currentLocation]);
 
-  // Load nearby places
+  // ── Load nearby places ───
   useEffect(() => {
     let isMounted = true;
 
     const loadNearbyPlaces = async () => {
       if (!currentLocation || !isMounted) return;
+      if (nearbyLoadedRef.current) return;
 
+      setSectionsLoading(prev => ({ ...prev, nearby: true }));
       try {
-        console.log('Loading nearby places for location:', currentLocation);
         const response = await placeService.getNearbyPlaces(
-          currentLocation.latitude,
-          currentLocation.longitude,
+          currentLocation.latitude, currentLocation.longitude,
           { radius: 3000, limit: 10 }
         );
 
         if (response.success && isMounted && response.data?.length > 0) {
-          console.log('✅ Nearby places loaded:', response.data.length);
-          const transformedPlaces = response.data.map(place => {
-            const addressStr = place.shortAddress || place.address || '';
-            const formattedLocation = formatPlaceAddress(addressStr);
-
-            return normalizePlaceImages({
-              id: place.id,
-              name: place.name || place.title,
-              title: place.title || place.name,
-              rating: place.rating,
-              location: formattedLocation,
-              image: place.imageUrl || place.image,
-              images: place.images || [],
-              isBookmarked: place.isBookmarked || false,
-              distance: place.distance,
-            });
-          });
+          const transformedPlaces = response.data.map(place => normalizePlaceImages({
+            id: place.id,
+            name: place.name || place.title,
+            title: place.title || place.name,
+            rating: place.rating,
+            location: formatPlaceAddress(place.shortAddress || place.address || ''),
+            image: place.imageUrl || place.image,
+            images: place.images || [],
+            isBookmarked: place.isBookmarked || false,
+            distance: place.distance,
+          }));
 
           setNearbyPlaces(transformedPlaces);
           setSectionsLoading(prev => ({ ...prev, nearby: false }));
+          nearbyLoadedRef.current = true;
 
           if (authService.isAuthenticated()) {
-            bookmarkService.applyBookmarkStatus(transformedPlaces).then(placesWithBookmarks => {
-              if (isMounted) {
-                setNearbyPlaces(placesWithBookmarks);
-              }
+            bookmarkService.applyBookmarkStatus(transformedPlaces).then(withBookmarks => {
+              if (isMounted) setNearbyPlaces(withBookmarks);
             });
           }
         } else if (isMounted) {
           setNearbyPlaces([]);
           setSectionsLoading(prev => ({ ...prev, nearby: false }));
+          nearbyLoadedRef.current = true;
         }
-      } catch (error) {
-        console.warn('⚠️ Failed to load nearby places:', error);
+      } catch {
         if (isMounted) {
           setNearbyPlaces([]);
           setSectionsLoading(prev => ({ ...prev, nearby: false }));
+          nearbyLoadedRef.current = true;
         }
       }
     };
 
-    if (currentLocation) {
-      loadNearbyPlaces();
-    }
-
-    return () => {
-      isMounted = false;
-    };
+    if (currentLocation) loadNearbyPlaces();
+    return () => { isMounted = false; };
   }, [currentLocation]);
 
-  // Load MBTI or weather/time recommendations based on login status
+  // ── Load home images (MBTI or weather) ───
   useEffect(() => {
     let isMounted = true;
 
     const loadHomeRecommendations = async () => {
-      try {
-        console.log('Loading recommendations based on user status...');
+      if (homeImagesLoadedRef.current) {
+        setSectionsLoading(prev => ({ ...prev, homeImages: false }));
+        return;
+      }
 
-        const isLoggedIn = user && user.id && user.id !== 'guest';
+      const isLoggedIn = user && user.id && user.id !== 'guest';
 
-        if (isLoggedIn) {
-          console.log('👤 User is logged in, loading MBTI-based recommendations');
-          await loadMBTIRecommendations(isMounted);
-        } else {
-          console.log('🌍 Guest user, loading weather/time-based recommendations');
-          await loadWeatherTimeRecommendations(isMounted);
+      if (isLoggedIn) {
+        try {
+          const response = await homeService.getHomeImages();
+          if (response.success && response.data.length > 0 && isMounted) {
+            const transformedPlaces = response.data.map(place => normalizePlaceImages({
+              ...place,
+              location: formatPlaceAddress(place.shortAddress || place.address || ''),
+            }));
+            setHomeImages(transformedPlaces);
+            setSectionsLoading(prev => ({ ...prev, homeImages: false }));
+            homeImagesLoadedRef.current = true;
+
+            if (authService.isAuthenticated()) {
+              bookmarkService.applyBookmarkStatus(transformedPlaces).then(withBookmarks => {
+                if (isMounted) setHomeImages(withBookmarks);
+              });
+            }
+          } else if (isMounted) {
+            setHomeImages([]);
+            setSectionsLoading(prev => ({ ...prev, homeImages: false }));
+            homeImagesLoadedRef.current = true;
+          }
+        } catch {
+          if (isMounted) {
+            setHomeImages([]);
+            setSectionsLoading(prev => ({ ...prev, homeImages: false }));
+            homeImagesLoadedRef.current = true;
+          }
         }
-      } catch (error) {
-        console.warn('⚠️ Failed to load recommendations:', error);
+      } else {
         if (isMounted) {
           setHomeImages([]);
           setSectionsLoading(prev => ({ ...prev, homeImages: false }));
+          homeImagesLoadedRef.current = true;
         }
       }
     };
 
     loadHomeRecommendations();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [user]);
-
-  const loadMBTIRecommendations = async (isMounted) => {
-    try {
-      const response = await homeService.getHomeImages();
-
-      if (response.success && response.data.length > 0 && isMounted) {
-        console.log('✅ MBTI recommendations loaded from database:', response.data.length);
-        const transformedPlaces = response.data.map(place => {
-          const addressStr = place.shortAddress || place.address || '';
-          const formattedLocation = formatPlaceAddress(addressStr);
-
-          return normalizePlaceImages({
-            ...place,
-            location: formattedLocation,
-          });
-        });
-
-        setHomeImages(transformedPlaces);
-        setSectionsLoading(prev => ({ ...prev, homeImages: false }));
-
-        if (authService.isAuthenticated()) {
-          bookmarkService.applyBookmarkStatus(transformedPlaces).then(placesWithBookmarks => {
-            if (isMounted) {
-              setHomeImages(placesWithBookmarks);
-            }
-          });
-        }
-      } else if (isMounted) {
-        console.log('🎯 No backend data available, showing empty state');
-        setHomeImages([]);
-        setSectionsLoading(prev => ({ ...prev, homeImages: false }));
-      }
-    } catch {
-      if (isMounted) {
-        console.log('🎯 Backend unavailable, showing empty state');
-        setHomeImages([]);
-        setSectionsLoading(prev => ({ ...prev, homeImages: false }));
-      }
-    }
-  };
-
-  const loadWeatherTimeRecommendations = async (isMounted) => {
-    try {
-      console.log('🌤️ Weather recommendations unavailable, showing empty state');
-      if (isMounted) {
-        setHomeImages([]);
-        setSectionsLoading(prev => ({ ...prev, homeImages: false }));
-      }
-    } catch {
-      if (isMounted) {
-        console.log('🌤️ Weather recommendations unavailable, showing empty state');
-        setHomeImages([]);
-        setSectionsLoading(prev => ({ ...prev, homeImages: false }));
-      }
-    }
-  };
 
   // Bookmark toggle handler
   const handleBookmarkToggle = async (placeId, isBookmarked) => {
@@ -655,8 +577,6 @@ export function useHomeData(currentLocation, setCurrentLocation) {
         return;
       }
 
-      console.log(`Place ${placeId} bookmark toggled:`, isBookmarked);
-
       let response;
       if (isBookmarked) {
         response = await bookmarkService.addBookmark(placeId);
@@ -665,23 +585,22 @@ export function useHomeData(currentLocation, setCurrentLocation) {
       }
 
       if (response.success) {
-        setRecommendations(prevRecommendations =>
-          prevRecommendations.map(place =>
-            place.id === placeId
-              ? { ...place, isBookmarked }
-              : place
-          )
+        setRecommendations(prev =>
+          prev.map(p => p.id === placeId ? { ...p, isBookmarked } : p)
         );
-      } else {
-        console.error('Failed to toggle bookmark:', response.message);
       }
     } catch (error) {
       console.error('Error toggling bookmark:', error);
     }
   };
 
-  // Retry function for error handling
+  // 새로고침 시 캐시 클리어 + 리로드
   const handleRetry = () => {
+    clearCache();
+    recommendationsLoadedRef.current = false;
+    nearbyLoadedRef.current = false;
+    popularLoadedRef.current = false;
+    homeImagesLoadedRef.current = false;
     setError(null);
     setSectionsLoading({
       recommendations: true,

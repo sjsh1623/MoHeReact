@@ -8,10 +8,8 @@ import LocationPin from '@/components/ui/indicators/LocationPin';
 import ProfileButton from '@/components/ui/buttons/ProfileButton';
 import OutlineButton from '@/components/ui/buttons/OutlineButton';
 import SearchBar from '@/components/ui/inputs/SearchBar';
-import SearchModal from '@/components/ui/modals/SearchModal';
 import SectionSkeleton from '@/components/ui/skeletons/SectionSkeleton';
 import ErrorMessage from '@/components/ui/alerts/ErrorMessage';
-import { useLocationStorage } from '@/hooks/useGeolocation';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 import bannerLeft from '@/assets/image/banner_left.png';
 import logoHeader from '@/assets/image/logo-header.svg';
@@ -30,9 +28,7 @@ export default function HomePage() {
   // Check if running on iOS native platform
   const isIOS = Capacitor.getPlatform() === 'ios';
 
-  const { getStoredLocation } = useLocationStorage();
-  const [currentLocation, setCurrentLocation] = useState(() => getStoredLocation());
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState(null);
   const { recentlyViewed, addRecentlyViewed } = useRecentlyViewed();
 
   // Data hooks
@@ -204,6 +200,8 @@ export default function HomePage() {
               <PlaceCard
                 title={place.title || place.name}
                 rating={place.rating}
+                reviewCount={place.reviewCount}
+                distance={place.distance}
                 location={place.location || place.category}
                 image={place.image || place.imageUrl}
                 images={place.images || []}
@@ -223,15 +221,9 @@ export default function HomePage() {
       <header className={styles.header}>
         <img src={logoHeader} alt="MOHE" className={styles.logo} />
         <div className={styles.headerSpacer} />
-        <SearchBar onClick={() => setIsSearchModalOpen(true)} />
+        <SearchBar onClick={() => navigate('/search')} />
         <ProfileButton onClick={handleProfileClick} />
       </header>
-
-      {/* Search Modal */}
-      <SearchModal
-        isOpen={isSearchModalOpen}
-        onClose={() => setIsSearchModalOpen(false)}
-      />
 
       {/* Location indicator */}
       <div className={styles.locationSection}>

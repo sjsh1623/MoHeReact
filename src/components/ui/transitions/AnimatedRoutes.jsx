@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Routes, Route, useLocation, useNavigationType, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion';
 import { initializeDeepLinkListener } from '@/utils/capacitorDeepLink';
+import { trackPageview } from '@/services/analyticsService';
 
 // Global scroll position store
 const scrollPositions = new Map();
@@ -31,6 +32,7 @@ import BookmarksPage from '@/pages/BookmarksPage.jsx';
 import MyPlacesPage from '@/pages/MyPlacesPage.jsx';
 import RecentViewPage from '@/pages/RecentViewPage.jsx';
 import SearchResultsPage from '@/pages/SearchResultsPage.jsx';
+import SearchPage from '@/pages/SearchPage.jsx';
 import ImageTestPage from '@/pages/ImageTestPage.jsx';
 import WriteReviewPage from '@/pages/WriteReviewPage.jsx';
 import MenuListPage from '@/pages/MenuListPage.jsx';
@@ -177,6 +179,11 @@ export default function AnimatedRoutes() {
   useEffect(() => {
     initializeDeepLinkListener(navigate);
   }, [navigate]);
+
+  // Track page views on route change
+  useEffect(() => {
+    trackPageview(location.pathname);
+  }, [location.pathname]);
 
   // Determine slide direction based on browser navigation action
   const getSlideDirection = () => {
@@ -387,6 +394,7 @@ export default function AnimatedRoutes() {
             <Route path="/my-places" element={<MyPlacesPage />} />
             <Route path="/recent-view" element={<RecentViewPage />} />
             <Route path="/places" element={<PlacesListPage />} />
+            <Route path="/search" element={<SearchPage />} />
             <Route path="/search-results" element={<SearchResultsPage />} />
             <Route path="/place/:id" element={<PlaceDetailPage />} />
             <Route path="/place/:id/menu" element={<MenuListPage />} />

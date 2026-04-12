@@ -80,53 +80,20 @@
   gap: 8px;
 }
 
-.tags {
+.infoList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #F2F4F6;
 }
 
-.locationSection {
-  margin-bottom: 24px;
-}
-
-.locationRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.locationInfo {
+.infoRow {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.transportationRow {
-  display: flex;
-  gap: 16px;
-}
-
-.transport {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.gallery {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
-}
-
-.galleryItem {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.additionalCount {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  gap: 10px;
+  padding: 8px 0;
 }
 
 .descriptionSection {

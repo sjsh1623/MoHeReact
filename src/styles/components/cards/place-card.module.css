@@ -131,6 +131,26 @@
   color: #222;
 }
 
+.reviewCount {
+  font-size: 12px;
+  color: #999;
+  font-weight: 400;
+}
+
+.noRating {
+  font-size: 13px;
+  color: #ccc;
+  font-weight: 400;
+}
+
+.distance {
+  font-size: 12px;
+  color: #999;
+  font-weight: 400;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .locationRow {
   display: flex;
   align-items: center;

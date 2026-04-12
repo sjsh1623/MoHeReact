@@ -45,6 +45,8 @@ export function useHomeCategories(currentLocation) {
             name: place.name || place.title,
             title: place.title || place.name,
             rating: place.rating,
+            reviewCount: place.reviewCount,
+            distance: place.distance,
             location: formattedLocation,
             image: place.imageUrl || place.image,
             images: place.images || [],
@@ -61,52 +63,67 @@ export function useHomeCategories(currentLocation) {
     }
   };
 
-  // Fetch backend category order + MBTI row
+  // Fetch backend category order (즉시 응답, DB 미사용)
   useEffect(() => {
     const fetchHomeCategories = async () => {
       if (!currentLocation) return;
       try {
-        const user = authService.getUser();
-        const mbti = user?.mbti || null;
         const response = await categoryService.getHomeCategories(
-          currentLocation.latitude, currentLocation.longitude, mbti
+          currentLocation.latitude, currentLocation.longitude
         );
-        if (response?.data) {
-          const data = response.data;
+        if (response?.data?.categoryRows) {
+          const backendOrder = response.data.categoryRows.map(r => r.key);
+          const baseCats = getTimeBasedSortedCategories();
+          const catMap = {};
+          baseCats.forEach(c => { catMap[c.key] = c; });
 
-          if (data.mbtiRow) {
-            setMbtiRow(data.mbtiRow);
-          }
-
-          if (data.categoryRows) {
-            const backendOrder = data.categoryRows.map(r => r.key);
-            const baseCats = getTimeBasedSortedCategories();
-            const catMap = {};
-            baseCats.forEach(c => { catMap[c.key] = c; });
-
-            const ordered = [];
-            const seen = new Set();
-            backendOrder.forEach(key => {
-              if (catMap[key] && !seen.has(key)) {
-                ordered.push(catMap[key]);
-                seen.add(key);
-              }
-            });
-            baseCats.forEach(c => {
-              if (!seen.has(c.key)) {
-                ordered.push(c);
-                seen.add(c.key);
-              }
-            });
-
-            setFixedCategories(ordered);
-          }
+          const ordered = [];
+          const seen = new Set();
+          backendOrder.forEach(key => {
+            if (catMap[key] && !seen.has(key)) {
+              const backendRow = response.data.categoryRows.find(r => r.key === key);
+              ordered.push({
+                ...catMap[key],
+                // 백엔드에서 제공하는 displayTitle 우선 사용
+                title: backendRow?.displayTitle || catMap[key].title
+              });
+              seen.add(key);
+            }
+          });
+          baseCats.forEach(c => {
+            if (!seen.has(c.key)) {
+              ordered.push(c);
+              seen.add(c.key);
+            }
+          });
+          setFixedCategories(ordered);
         }
       } catch (e) {
         console.debug('Home categories API failed, using client-side sorting');
       }
     };
     fetchHomeCategories();
+  }, [currentLocation]);
+
+  // Fetch MBTI row separately (DB 사용, 느릴 수 있음)
+  useEffect(() => {
+    const fetchMbtiRow = async () => {
+      if (!currentLocation) return;
+      const user = authService.getCurrentUser();
+      const mbti = user?.mbti;
+      if (!mbti) return;
+      try {
+        const response = await categoryService.getHomeMbtiRow(
+          currentLocation.latitude, currentLocation.longitude, mbti
+        );
+        if (response?.data?.title) {
+          setMbtiRow(response.data);
+        }
+      } catch (e) {
+        console.debug('MBTI row API failed');
+      }
+    };
+    fetchMbtiRow();
   }, [currentLocation]);
 
   // Load initial categories

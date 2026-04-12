@@ -13,9 +13,9 @@ export const useGeolocation = (options = {}) => {
   const [permission, setPermission] = useState(null);
 
   const defaultOptions = {
-    enableHighAccuracy: true,
-    timeout: 10000,
-    maximumAge: 300000, // 5 minutes
+    enableHighAccuracy: false,
+    timeout: 5000,
+    maximumAge: 60000, // 1분 이내 캐시 허용 (빠른 응답)
     ...options
   };
 
@@ -418,7 +418,7 @@ export const useLocationStorage = () => {
       if (!stored) return null;
 
       const parsed = JSON.parse(stored);
-      const maxAge = 30 * 60 * 1000; // 30 minutes
+      const maxAge = 5 * 60 * 1000; // 5 minutes
 
       if (Date.now() - parsed.savedAt > maxAge) {
         localStorage.removeItem(STORAGE_KEY);

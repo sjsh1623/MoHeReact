@@ -11,7 +11,7 @@ import { buildImageUrl, normalizePlaceImages } from '@/utils/image';
 import LoginRequiredSheet from '@/components/ui/modals/LoginRequiredSheet';
 
 const CARD_DELAY = 0.45;
-const MAX_CARDS = 3;
+const MAX_CARDS = 8;
 const MIN_LOADING_MS = 3000;
 
 // 시간대 × 날씨별 환영 멘트
@@ -318,10 +318,9 @@ export default function SearchResultsPage() {
       if (preloadedResults) {
         results = preloadedResults.map(normalizePlaceImages);
       } else {
-        // 위치: geolocation 우선, 없으면 저장된 위치, 최후에 기본 서울
-        const stored = JSON.parse(localStorage.getItem('mohe_user_location') || 'null');
-        let lat = location?.latitude || stored?.latitude || 37.5665;
-        let lon = location?.longitude || stored?.longitude || 126.9780;
+        // 위치: 현재 geolocation 우선, 최후에 기본 서울 (캐시된 오래된 위치 사용 안 함)
+        let lat = location?.latitude || 37.5665;
+        let lon = location?.longitude || 126.9780;
 
         let response;
         if (query) {
@@ -419,8 +418,18 @@ export default function SearchResultsPage() {
   const handlePlaceClick = (place) => navigate(`/place/${place.id}`, { state: { preloadedData: place } });
 
   const handleSendMessage = () => {
+    if (isLoading) return;
     const trimmed = inputValue.trim();
-    if (!trimmed || isLoading) return;
+    // 빈 입력이면 환영 메시지에서 질문 추출하여 검색
+    if (!trimmed && !hasMessages) {
+      const fallbackQuery = welcomeMessage.replace(/[^\uAC00-\uD7A3a-zA-Z0-9\s]/g, '').trim().split('\n').pop()?.trim();
+      if (fallbackQuery) {
+        setInputValue('');
+        performSearch(fallbackQuery);
+        return;
+      }
+    }
+    if (!trimmed) return;
     setInputValue('');
     performSearch(trimmed);
   };
@@ -560,14 +569,18 @@ export default function SearchResultsPage() {
 
           return (
             <React.Fragment key={msg.id}>
-              {cards.map((place, ci) => (
-                <motion.div key={place.id} className={styles.cardWrapper}
+              {cards.length > 0 && (
+                <motion.div className={styles.cardsScroller}
                   initial={isLatest && msg.isStreaming ? { opacity: 0, y: 20 } : false}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: isLatest && msg.isStreaming ? ci * CARD_DELAY : 0, duration: 0.4 }}>
-                  <PlaceCard place={place} onBookmarkToggle={handleBookmarkToggle} onClick={() => handlePlaceClick(place)} />
+                  transition={{ delay: isLatest && msg.isStreaming ? 0.2 : 0, duration: 0.4 }}>
+                  {cards.map((place, ci) => (
+                    <div key={place.id} className={styles.cardSlide}>
+                      <PlaceCard place={place} onBookmarkToggle={handleBookmarkToggle} onClick={() => handlePlaceClick(place)} />
+                    </div>
+                  ))}
                 </motion.div>
-              ))}
+              )}
               <motion.div className={styles.aiMessageRow}
                 initial={isLatest && msg.isStreaming ? { opacity: 0, y: 12 } : false}
                 animate={{ opacity: 1, y: 0 }}

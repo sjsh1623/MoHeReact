@@ -1117,19 +1117,17 @@ export function getTimeBasedSortedCategories() {
     const otherCategories = [];
 
     baseCategories.forEach(cat => {
-      // 랜덤하게 하나의 타이틀 선택
-      const randomTitle = cat.titles[Math.floor(Math.random() * cat.titles.length)];
-
       if (primaryKeys.has(cat.key)) {
-        // 시간대에 맞는 타이틀 사용 (있으면 시간대 타이틀, 없으면 랜덤)
+        // 시간대에 맞는 타이틀 사용 (있으면 시간대 타이틀, 없으면 기본 타이틀)
         priorityCategories.push({
           key: cat.key,
-          title: slotTitles[cat.key] || randomTitle
+          title: slotTitles[cat.key] || cat.titles[0]
         });
       } else {
+        // 비우선 카테고리는 첫 번째(가장 일반적인) 타이틀 사용
         otherCategories.push({
           key: cat.key,
-          title: randomTitle
+          title: cat.titles[0]
         });
       }
     });
@@ -1146,11 +1144,11 @@ export function getTimeBasedSortedCategories() {
 
     allCategories = [...priorityCategories, ...shuffledOthers];
   } else {
-    // 시간대 정보가 없으면 랜덤 셔플
+    // 시간대 정보가 없으면 기본 타이틀 사용
     allCategories = baseCategories.map(cat => ({
       key: cat.key,
-      title: cat.titles[Math.floor(Math.random() * cat.titles.length)]
-    })).sort(() => Math.random() - 0.5);
+      title: cat.titles[0]
+    }));
   }
 
   // 중복 key 제거 (첫 번째 항목만 유지)

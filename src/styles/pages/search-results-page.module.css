@@ -222,6 +222,26 @@
 
 /* ── Card wrapper (motion div around each card) ── */
 /* Indented to align with AI content (avatar 34 + gap 10 = 44px) */
+/* ── Horizontal Cards Scroller ──────────── */
+.cardsScroller {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 16px 4px 44px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.cardsScroller::-webkit-scrollbar { display: none; }
+
+.cardSlide {
+  flex: 0 0 72%;
+  max-width: 280px;
+  min-width: 220px;
+  scroll-snap-align: start;
+}
+
 .cardWrapper {
   padding-left: 44px;
 }
