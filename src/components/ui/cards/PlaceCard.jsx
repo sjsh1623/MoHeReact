@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import styles from '@/styles/components/cards/place-card.module.css';
 import { buildImageUrl, buildImageUrlList } from '@/utils/image';
+import { getDefaultPlaceImage } from '@/utils/defaultPlaceImage';
 
 function formatDistance(dist) {
   if (dist == null || dist <= 0) return null;
@@ -15,6 +16,7 @@ export default function PlaceCard({
   location,
   image,
   images = [],
+  category,
   isBookmarked = false,
   onBookmarkToggle,
   className = '',
@@ -40,8 +42,8 @@ export default function PlaceCard({
 
   const locationStr = getLocationString();
 
-  // Image processing from fallback branch
-  const fallbackImage = 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=240&h=240&fit=crop&crop=center';
+  // Category-aware brand fallback image
+  const fallbackImage = useMemo(() => getDefaultPlaceImage(category), [category]);
 
   const displayedImage = useMemo(() => {
     const normalizedImages = buildImageUrlList(images);
@@ -55,7 +57,7 @@ export default function PlaceCard({
     }
 
     return fallbackImage;
-  }, [image, images]);
+  }, [image, images, fallbackImage]);
 
   const handleBookmarkClick = (e) => {
     e.stopPropagation();
@@ -66,7 +68,12 @@ export default function PlaceCard({
     }
   };
 
-  const handleImageError = () => {
+  const handleImageError = (e) => {
+    // Swap to category-aware default; only hide if that also fails.
+    if (e?.target && e.target.src !== fallbackImage) {
+      e.target.src = fallbackImage;
+      return;
+    }
     setImageError(true);
   };
 

@@ -78,6 +78,7 @@ export default function MyPlacesPage() {
                 name={place.name || place.title}
                 location={place.location}
                 image={place.image || place.imageUrl}
+                category={place.category || place.type}
                 rating={place.rating}
               />
             ))}

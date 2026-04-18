@@ -1,17 +1,20 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import styles from '@/styles/components/cards/bookmark-place-card.module.css';
 import { buildImageUrl } from '@/utils/image';
+import { getDefaultPlaceImage } from '@/utils/defaultPlaceImage';
 
-export default function BookmarkPlaceCard({ name, location, image, rating, onClick }) {
+export default function BookmarkPlaceCard({ name, location, image, rating, category, onClick }) {
+  const fallbackImage = useMemo(() => getDefaultPlaceImage(category), [category]);
   return (
     <div className={styles.card} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
       <div className={styles.imageContainer}>
         <img
-          src={buildImageUrl(image) || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=176&h=159&fit=crop&crop=center'}
+          src={buildImageUrl(image) || fallbackImage}
           alt={name}
           className={styles.image}
           loading="lazy"
           decoding="async"
+          onError={(e) => { if (e.target.src !== fallbackImage) e.target.src = fallbackImage; }}
         />
       </div>
       

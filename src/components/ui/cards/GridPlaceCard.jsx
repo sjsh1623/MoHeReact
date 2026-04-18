@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styles from '@/styles/components/cards/grid-place-card.module.css';
 import StarRating from '@/components/ui/indicators/StarRating';
 import { buildImageUrl } from '@/utils/image';
+import { getDefaultPlaceImage } from '@/utils/defaultPlaceImage';
 
 export default function GridPlaceCard({
   title,
   rating,
   location,
   image,
+  category,
   isBookmarked = false,
   onBookmarkToggle,
   onClick
 }) {
   const [bookmarked, setBookmarked] = useState(isBookmarked);
   const [imageError, setImageError] = useState(false);
+  const fallbackImage = useMemo(() => getDefaultPlaceImage(category), [category]);
 
   useEffect(() => {
     setBookmarked(isBookmarked);
@@ -28,7 +31,11 @@ export default function GridPlaceCard({
     }
   };
 
-  const handleImageError = () => {
+  const handleImageError = (e) => {
+    if (e?.target && e.target.src !== fallbackImage) {
+      e.target.src = fallbackImage;
+      return;
+    }
     setImageError(true);
   };
 
@@ -47,7 +54,7 @@ export default function GridPlaceCard({
           </div>
         ) : (
           <img
-            src={buildImageUrl(image) || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=176&h=159&fit=crop&crop=center'}
+            src={buildImageUrl(image) || fallbackImage}
             alt={title}
             className={styles.image}
             onError={handleImageError}

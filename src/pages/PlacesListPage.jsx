@@ -181,6 +181,7 @@ export default function PlacesListPage() {
                     rating={place.rating}
                     location={place.location || place.category}
                     image={place.image || place.imageUrl}
+                    category={place.category || place.type}
                     isBookmarked={place.isBookmarked || false}
                     onClick={() => handlePlaceClick(place.id)}
                     onBookmarkToggle={(isBookmarked) => handleBookmarkToggle(place.id, isBookmarked)}

@@ -8,6 +8,7 @@ import { authService } from '@/services/authService';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useConversationHistory } from '@/hooks/useConversationHistory';
 import { buildImageUrl, normalizePlaceImages } from '@/utils/image';
+import { getDefaultPlaceImage } from '@/utils/defaultPlaceImage';
 import LoginRequiredSheet from '@/components/ui/modals/LoginRequiredSheet';
 
 const CARD_DELAY = 0.45;
@@ -647,9 +648,10 @@ export default function SearchResultsPage() {
 
 function PlaceCard({ place, onBookmarkToggle, onClick }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const fallbackImage = getDefaultPlaceImage(place.category || place.type);
   const images = place.images?.length > 0 ? place.images
     : place.image ? [place.image] : place.imageUrl ? [place.imageUrl]
-    : ['https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&h=600&fit=crop'];
+    : [fallbackImage];
 
   return (
     <div className={styles.placeCard} onClick={onClick}>
@@ -660,8 +662,9 @@ function PlaceCard({ place, onBookmarkToggle, onClick }) {
         }}>
           {images.slice(0, 5).map((src, i) => (
             <div key={i} className={styles.imageSlide}>
-              <img src={buildImageUrl(src)} alt={`${place.name} ${i+1}`} className={styles.placeImage}
-                draggable={false} onError={e => { e.target.src = 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&h=600&fit=crop'; }} />
+              <img src={buildImageUrl(src) || fallbackImage} alt={`${place.name} ${i+1}`} className={styles.placeImage}
+                loading="lazy" decoding="async"
+                draggable={false} onError={e => { if (e.target.src !== fallbackImage) e.target.src = fallbackImage; }} />
             </div>
           ))}
         </div>

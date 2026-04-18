@@ -147,6 +147,7 @@ export default function RecentViewPage() {
                   rating={place.rating}
                   location={place.location}
                   image={place.image || place.imageUrl}
+                  category={place.category || place.type}
                   isBookmarked={place.isBookmarked}
                   onClick={() => handlePlaceClick(place.id)}
                   onBookmarkToggle={(isBookmarked) => handleBookmarkToggle(place.id, isBookmarked)}

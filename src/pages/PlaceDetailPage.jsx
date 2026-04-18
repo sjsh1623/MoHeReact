@@ -9,6 +9,7 @@ import ErrorMessage from '@/components/ui/alerts/ErrorMessage';
 import { activityService, placeService, bookmarkService } from '@/services/apiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildImageUrl, buildImageUrlList, normalizePlaceImages } from '@/utils/image';
+import { getDefaultPlaceImage } from '@/utils/defaultPlaceImage';
 import MenuFullscreenModal from '@/components/ui/modals/MenuFullscreenModal';
 import ShareModal from '@/components/ui/modals/ShareModal';
 
@@ -413,7 +414,7 @@ export default function PlaceDetailPage({ place = null }) {
   }
 
   const defaultImages = [
-    'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=440&h=563&fit=crop&crop=center',
+    getDefaultPlaceImage(placeData.category || placeData.type),
   ];
 
   const candidateImages = placeData.images?.length

@@ -205,6 +205,7 @@ export default function HomePage() {
                 location={place.location || place.category}
                 image={place.image || place.imageUrl}
                 images={place.images || []}
+                category={place.category || place.type}
                 isBookmarked={place.isBookmarked || false}
                 onBookmarkToggle={bookmarkable ? ((isBookmarked) => handleBookmarkToggle(place.id, isBookmarked)) : undefined}
               />
