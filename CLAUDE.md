@@ -121,6 +121,23 @@ src/components/
 - Complete preference management infrastructure
 - Mobile-first responsive design implemented
 
+## Brand Assets & Design
+
+The workspace-level **`../DESIGN_GUIDE.md`** is the authoritative source for logo usage, color palette, and default place images. Highlights specific to this app:
+
+- **Logo import** — `import logoHeader from '@/assets/image/logo-header.svg'`. The SVG is a base64-PNG wrapper so Vite hashes it cleanly. Raster fallbacks live next to it (`logo-header.png`, `logo-header@2x.png`).
+- **Master source** — `src/assets/image/logo-master-1024.png` (1024×1024). Regenerate sizes from this when changing the logo.
+- **Favicons / PWA** — `public/logo.svg`, `public/favicon-{32,64}.png`, `public/apple-touch-icon.png`, and `public/icons/icon-{48,72,96,128,192,256,512}.png`. Wired up in `index.html` and `public/manifest.webmanifest`.
+- **Default place images** — `src/assets/image/defaults/*.png` (9 categories). Never hard-code Unsplash URLs as fallbacks; always use the helper:
+
+  ```js
+  import { getDefaultPlaceImage } from '@/utils/defaultPlaceImage';
+  const fallback = getDefaultPlaceImage(place.category || place.type);
+  ```
+
+- **Card contract** — `PlaceCard`, `GridPlaceCard`, and `BookmarkPlaceCard` accept a `category` prop and auto-swap to the correct default on `<img onError>`. When adding a new place-list page, pass `category={place.category || place.type}`.
+- **Brand gradient** (see DESIGN_GUIDE § 2 for tokens) — blue → purple → orange horizontal. The existing `#FF385C` accent is legacy; prefer the brand palette for new components.
+
 ## Analytics Tracking
 
 **Service**: `src/services/analyticsService.js`
