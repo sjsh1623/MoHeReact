@@ -13,9 +13,12 @@ export const useGeolocation = (options = {}) => {
   const [permission, setPermission] = useState(null);
 
   const defaultOptions = {
-    enableHighAccuracy: false,
-    timeout: 5000,
-    maximumAge: 60000, // 1분 이내 캐시 허용 (빠른 응답)
+    // 고정밀(GPS) 요구. false 로 하면 셀타워/WiFi 기반 추정치가 오는데,
+    // 정자동 ↔ 용인시 기흥구처럼 ~9km 떨어진 인접 셀 커버리지가 겹치는
+    // 지역에서 실제 위치와 완전히 다른 좌표가 반환되는 경우 발생.
+    enableHighAccuracy: true,
+    timeout: 8000,
+    maximumAge: 10000, // 10초 — stale 위치 재사용 최소화
     ...options
   };
 
@@ -418,7 +421,7 @@ export const useLocationStorage = () => {
       if (!stored) return null;
 
       const parsed = JSON.parse(stored);
-      const maxAge = 5 * 60 * 1000; // 5 minutes
+      const maxAge = 2 * 60 * 1000; // 2 minutes — 사용자 이동 시 stale 값 고착 방지
 
       if (Date.now() - parsed.savedAt > maxAge) {
         localStorage.removeItem(STORAGE_KEY);

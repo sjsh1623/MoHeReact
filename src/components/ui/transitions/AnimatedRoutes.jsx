@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Routes, Route, useLocation, useNavigationType, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion';
+import { Capacitor } from '@capacitor/core';
 import { initializeDeepLinkListener } from '@/utils/capacitorDeepLink';
 import { trackPageview } from '@/services/analyticsService';
 
@@ -183,8 +184,15 @@ export default function AnimatedRoutes() {
     const velocity = currentDragX / (elapsed || 1); // px/ms
 
     if (currentDragX >= swipeThreshold || (velocity > 0.5 && currentDragX > 30)) {
-      // Trigger back navigation
-      navigate(-1);
+      // Only fire SPA navigation on Capacitor native apps where there is no
+      // native edge-swipe-back gesture. On iOS Safari / Android Chrome the
+      // browser itself handles the back-swipe — calling navigate(-1) on top
+      // of that fires a second POP, which takes history below /home and
+      // causes HomePage to remount (observed as "swipe-back re-renders the
+      // whole page" while button-back works fine).
+      if (Capacitor.isNativePlatform()) {
+        navigate(-1);
+      }
     }
 
     // Reset state
