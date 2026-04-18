@@ -88,7 +88,14 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path
-      }
+      },
+      // Dev 전용: /image/* → 이미지 프로세서로 직접 프록시 (Caddy 우회)
+      // 프로덕션은 Caddyfile 의 handle /image/* 블록이 처리
+      '/image': {
+        target: 'http://localhost:5200',
+        changeOrigin: true,
+        secure: false,
+      },
     }
   }
 });

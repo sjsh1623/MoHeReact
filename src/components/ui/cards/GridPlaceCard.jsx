@@ -16,7 +16,7 @@ export default function GridPlaceCard({
 }) {
   const [bookmarked, setBookmarked] = useState(isBookmarked);
   const [imageError, setImageError] = useState(false);
-  const fallbackImage = useMemo(() => getDefaultPlaceImage(category), [category]);
+  const fallbackImage = useMemo(() => getDefaultPlaceImage(title, category), [title, category]);
 
   useEffect(() => {
     setBookmarked(isBookmarked);

@@ -26,7 +26,7 @@ const buildDefaultBaseUrl = () => {
     return DEFAULT_PROD_IMAGE_BASE;
   }
 
-  const { hostname, protocol } = window.location;
+  const { hostname, protocol, host } = window.location;
 
   // Production domains use Caddy proxy path
   // This ensures HTTPS images on HTTPS sites (prevents mixed content blocking)
@@ -36,9 +36,13 @@ const buildDefaultBaseUrl = () => {
     return baseUrl;
   }
 
-  // For all other deployments, use same-origin proxy path
-  // Caddy proxies /image/* to image processor
-  const baseUrl = `${protocol}//${hostname}/image/`;
+  // For all other deployments (dev server, local preview, Docker), use
+  // same-origin proxy path. IMPORTANT: use `host` (includes port) not
+  // `hostname`, otherwise dev URLs collapse to `http://localhost/image/`
+  // which is intercepted by Caddy's IP-block rule (returns 403).
+  // Dev: Vite proxies /image → localhost:5200 (see vite.config.js)
+  // Prod: Caddy proxies /image/* → moheimageprocessor
+  const baseUrl = `${protocol}//${host}/image/`;
   logImageConfig(baseUrl, 'same-origin proxy');
   return baseUrl;
 };

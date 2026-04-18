@@ -4,7 +4,7 @@ import { buildImageUrl } from '@/utils/image';
 import { getDefaultPlaceImage } from '@/utils/defaultPlaceImage';
 
 export default function BookmarkPlaceCard({ name, location, image, rating, category, onClick }) {
-  const fallbackImage = useMemo(() => getDefaultPlaceImage(category), [category]);
+  const fallbackImage = useMemo(() => getDefaultPlaceImage(name, category), [name, category]);
   return (
     <div className={styles.card} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
       <div className={styles.imageContainer}>

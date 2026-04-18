@@ -11,7 +11,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run lint` - Run ESLint
 
 ### Testing
-No test framework is currently configured.
+No unit-test framework is currently configured.
+
+**Frontend E2E / manual verification — Playwright MCP**:
+- MCP server `playwright` (command: `npx -y @playwright/mcp@latest`) is registered in this project's Claude Code config. New sessions auto-load it.
+- Use for browser-driven verification: real navigation, click/tap, scroll, network/console capture, screenshots against the running dev server (`http://localhost:3000/`).
+- Typical flow when a UI change needs real-interaction proof (animation timing, touch responsiveness, route transitions): boot `npm run dev` in background, then drive the page via `mcp__playwright__browser_*` tools instead of asking the user to click manually.
+- If tools don't appear, check `claude mcp list` — re-add with `claude mcp add playwright npx -- -y @playwright/mcp@latest`.
 
 ## Architecture
 

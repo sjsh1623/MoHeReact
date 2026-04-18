@@ -42,8 +42,11 @@ export default function PlaceCard({
 
   const locationStr = getLocationString();
 
-  // Category-aware brand fallback image
-  const fallbackImage = useMemo(() => getDefaultPlaceImage(category), [category]);
+  // Category-aware brand fallback image.
+  // Try name first — branded names ("스타벅스") are more specific than
+  // backend-generic categories ("음식점"). Fall back to category if name
+  // doesn't match any keyword.
+  const fallbackImage = useMemo(() => getDefaultPlaceImage(title, category), [title, category]);
 
   const displayedImage = useMemo(() => {
     const normalizedImages = buildImageUrlList(images);

@@ -6,7 +6,8 @@ import { formatPlaceAddress, formatDisplayAddress } from '@/utils/addressUtils';
 import { normalizePlaceImages } from '@/utils/image';
 
 // ── sessionStorage 캐시 (30분 TTL) ───
-const CACHE_KEY = 'mohe_home_cache';
+// v2: place transform에 category 필드 추가 — 구버전 캐시는 자동 무효화
+const CACHE_KEY = 'mohe_home_cache_v2';
 const CACHE_TTL = 10 * 60 * 1000; // 10분
 
 function saveCache(data) {
@@ -303,6 +304,7 @@ export function useHomeData(currentLocation, setCurrentLocation) {
                   isBookmarked: place.isBookmarked,
                   weatherSuitability: place.weatherSuitability,
                   reasonWhy: place.description,
+                  category: place.category || place.type,
                 });
               });
             }
@@ -363,6 +365,7 @@ export function useHomeData(currentLocation, setCurrentLocation) {
           isBookmarked: false,
           weatherSuitability: place.weatherSuitability,
           reasonWhy: place.reasonWhy,
+          category: place.category || place.type,
         }));
       }
       return [];
@@ -383,6 +386,7 @@ export function useHomeData(currentLocation, setCurrentLocation) {
           isBookmarked: false,
           score: place.score || null,
           reasonWhy: place.reasonWhy || null,
+          category: place.category || place.type,
         }));
       }
       return [];
@@ -431,6 +435,7 @@ export function useHomeData(currentLocation, setCurrentLocation) {
             image: place.imageUrl || place.image,
             images: place.images || [],
             isBookmarked: place.isBookmarked || false,
+            category: place.category || place.type,
           }));
 
           setPopularPlaces(transformedPlaces);
@@ -486,6 +491,7 @@ export function useHomeData(currentLocation, setCurrentLocation) {
             images: place.images || [],
             isBookmarked: place.isBookmarked || false,
             distance: place.distance,
+            category: place.category || place.type,
           }));
 
           setNearbyPlaces(transformedPlaces);

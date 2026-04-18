@@ -88,12 +88,30 @@ const NO_SWIPE_BACK_ROUTES = new Set([
   '/hello',
 ]);
 
+// Persistent routes — mounted once, kept alive across navigation.
+// HomePage remount/refetch on back-nav was the primary cause of the
+// "touch blocked for 300ms~1s after returning from detail page" bug.
+const PERSISTENT_ROUTES = new Set(['/home']);
+const isPersistentRoute = (path) => PERSISTENT_ROUTES.has(path);
+
 export default function AnimatedRoutes() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const navigate = useNavigate();
   const prevLocation = useRef(location.pathname);
   const currentContainerRef = useRef(null);
+
+  // Track whether HomePage was ever visited in this session — lazily mounts
+  // the persistent HomePage layer so deep-links (e.g. /place/123) don't pay
+  // the HomePage mount+fetch cost.
+  const [hasVisitedHome, setHasVisitedHome] = useState(
+    location.pathname === '/home'
+  );
+  useEffect(() => {
+    if (location.pathname === '/home' && !hasVisitedHome) {
+      setHasVisitedHome(true);
+    }
+  }, [location.pathname, hasVisitedHome]);
 
   // Swipe back gesture state
   const [isDragging, setIsDragging] = useState(false);
@@ -268,22 +286,45 @@ export default function AnimatedRoutes() {
     initial: (direction) => ({
       x: shouldAnimate ? (direction === 'forward' ? '100%' : '-100%') : 0,
       opacity: 1,
-      zIndex: 1
+      zIndex: 1,
+      pointerEvents: 'auto'
     }),
     animate: {
       x: 0,
       opacity: 1,
-      zIndex: 2
+      zIndex: 2,
+      pointerEvents: 'auto'
     },
     exit: (direction) => ({
       x: shouldAnimate ? (direction === 'forward' ? '-100%' : '100%') : 0,
       opacity: 1,
-      zIndex: 0
+      zIndex: 0,
+      // Block input on the exiting layer so taps don't leak through
+      // during the slide-out animation.
+      pointerEvents: 'none'
     })
   };
 
   const isAuthRoute = AUTH_ROUTES.has(location.pathname);
+  const isPersistent = isPersistentRoute(location.pathname);
+  const showTransientLayer = !isAuthRoute && !isPersistent;
   const shellPaddingBottom = 'var(--app-shell-safe-bottom, 0px)';
+
+  const baseLayerStyle = {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    minHeight: '100%',
+    background: '#ffffff',
+    overflowY: 'auto',
+    willChange: 'transform',
+    backfaceVisibility: 'hidden',
+    WebkitBackfaceVisibility: 'hidden',
+    WebkitTransform: 'translate3d(0,0,0)',
+    transform: 'translate3d(0,0,0)',
+    WebkitOverflowScrolling: 'touch',
+    paddingBottom: shellPaddingBottom,
+  };
 
   return (
     <div
@@ -336,73 +377,111 @@ export default function AnimatedRoutes() {
         />
       )}
 
-      <AnimatePresence initial={false} custom={slideDirection}>
-        <motion.div
-          key={location.pathname}
-          custom={slideDirection}
-          variants={slideVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          transition={{
-            duration: shouldAnimate ? 0.25 : 0,
-            ease: [0.4, 0.0, 0.2, 1], // Material Design easing curve
-            type: "tween" // Force tween for better WebView performance
-          }}
+      {/*
+        Persistent layer — HomePage stays mounted once visited.
+        Acts as underlay when transient routes are on top; visible when
+        pathname === '/home'. No remount = no refetch = no touch block
+        when returning from /place/:id via back-nav.
+      */}
+      {!isAuthRoute && hasVisitedHome && (
+        <div
           data-page-container
-          data-route={location.pathname}
+          data-route="/home"
           style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            minHeight: '100%',
-            background: '#ffffff',
-            overflowY: 'auto', // Allow individual pages to scroll
-            willChange: 'transform',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-            WebkitTransform: 'translate3d(0,0,0)',
-            transform: 'translate3d(0,0,0)',
-            WebkitOverflowScrolling: 'touch',
-            paddingBottom: shellPaddingBottom,
-            // Apply drag transform when swiping
-            x: isDragging ? dragX : 0
+            ...baseLayerStyle,
+            zIndex: 0,
+            // Only receive input when /home is the active route
+            pointerEvents: location.pathname === '/home' ? 'auto' : 'none',
           }}
-          ref={containerRef}
-          onScroll={handleScroll}
         >
-          <Routes location={location}>
-            <Route path="/" element={<AuthPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/signup" element={<EmailSignupPage />} />
-            <Route path="/verify-email" element={<EmailVerificationPage />} />
-            <Route path="/nickname-setup" element={<NicknameSetupPage />} />
-            <Route path="/terms" element={<TermsAgreementPage />} />
-            <Route path="/password-setup" element={<PasswordSetupPage />} />
-            <Route path="/oauth/:provider/callback" element={<OAuthCallbackPage />} />
-            <Route path="/home" element={<HomePage />} />
-            <Route path="/age-range" element={<AgeRangeSelectionPage />} />
-            <Route path="/mbti-selection" element={<MBTISelectionPage />} />
-            <Route path="/space-preference" element={<SpacePreferenceSelectionPage />} />
-            <Route path="/transportation-selection" element={<TransportationSelectionPage />} />
-            <Route path="/hello" element={<HelloPage />} />
-            <Route path="/profile-settings" element={<ProfileSettingsPage />} />
-            <Route path="/profile-edit" element={<ProfileEditPage />} />
-            <Route path="/mbti-edit" element={<MBTIEditPage />} />
-            <Route path="/bookmarks" element={<BookmarksPage />} />
-            <Route path="/my-places" element={<MyPlacesPage />} />
-            <Route path="/recent-view" element={<RecentViewPage />} />
-            <Route path="/places" element={<PlacesListPage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/search-results" element={<SearchResultsPage />} />
-            <Route path="/place/:id" element={<PlaceDetailPage />} />
-            <Route path="/place/:id/menu" element={<MenuListPage />} />
-            <Route path="/place/:id/review/write" element={<WriteReviewPage />} />
-            <Route path="/image-test" element={<ImageTestPage />} />
-            <Route path="/location-test" element={<LocationTestPage />} />
-          </Routes>
-        </motion.div>
+          <HomePage />
+        </div>
+      )}
+
+      {/* Transient layer — all non-persistent, non-auth routes slide here */}
+      <AnimatePresence initial={false} custom={slideDirection}>
+        {showTransientLayer && (
+          <motion.div
+            key={location.pathname}
+            custom={slideDirection}
+            variants={slideVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{
+              duration: shouldAnimate ? 0.25 : 0,
+              ease: [0.4, 0.0, 0.2, 1],
+              type: "tween"
+            }}
+            data-page-container
+            data-route={location.pathname}
+            style={{
+              ...baseLayerStyle,
+              x: isDragging ? dragX : 0,
+            }}
+            ref={containerRef}
+            onScroll={handleScroll}
+          >
+            <Routes location={location}>
+              <Route path="/age-range" element={<AgeRangeSelectionPage />} />
+              <Route path="/mbti-selection" element={<MBTISelectionPage />} />
+              <Route path="/space-preference" element={<SpacePreferenceSelectionPage />} />
+              <Route path="/transportation-selection" element={<TransportationSelectionPage />} />
+              <Route path="/hello" element={<HelloPage />} />
+              <Route path="/profile-settings" element={<ProfileSettingsPage />} />
+              <Route path="/profile-edit" element={<ProfileEditPage />} />
+              <Route path="/mbti-edit" element={<MBTIEditPage />} />
+              <Route path="/bookmarks" element={<BookmarksPage />} />
+              <Route path="/my-places" element={<MyPlacesPage />} />
+              <Route path="/recent-view" element={<RecentViewPage />} />
+              <Route path="/places" element={<PlacesListPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/search-results" element={<SearchResultsPage />} />
+              <Route path="/place/:id" element={<PlaceDetailPage />} />
+              <Route path="/place/:id/menu" element={<MenuListPage />} />
+              <Route path="/place/:id/review/write" element={<WriteReviewPage />} />
+              <Route path="/image-test" element={<ImageTestPage />} />
+              <Route path="/location-test" element={<LocationTestPage />} />
+            </Routes>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Auth / onboarding entry layer */}
+      <AnimatePresence initial={false} custom={slideDirection}>
+        {isAuthRoute && (
+          <motion.div
+            key={location.pathname}
+            custom={slideDirection}
+            variants={slideVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{
+              duration: shouldAnimate ? 0.25 : 0,
+              ease: [0.4, 0.0, 0.2, 1],
+              type: "tween"
+            }}
+            data-page-container
+            data-route={location.pathname}
+            style={{
+              ...baseLayerStyle,
+              x: isDragging ? dragX : 0,
+            }}
+          >
+            <Routes location={location}>
+              <Route path="/" element={<AuthPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/signup" element={<EmailSignupPage />} />
+              <Route path="/verify-email" element={<EmailVerificationPage />} />
+              <Route path="/nickname-setup" element={<NicknameSetupPage />} />
+              <Route path="/terms" element={<TermsAgreementPage />} />
+              <Route path="/password-setup" element={<PasswordSetupPage />} />
+              <Route path="/oauth/:provider/callback" element={<OAuthCallbackPage />} />
+            </Routes>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

@@ -8,6 +8,33 @@ import { getTimeBasedSortedCategories } from '@/constants/categoryData';
 const INITIAL_CATEGORIES_COUNT = 5;
 const CATEGORIES_BATCH_SIZE = 5;
 
+// ── sessionStorage 캐시 (10분 TTL) ───
+// v2: place transform에 category 필드 추가 — 구버전 캐시는 자동 무효화
+const CATEGORIES_CACHE_KEY = 'mohe_home_categories_cache_v2';
+const CATEGORIES_CACHE_TTL = 10 * 60 * 1000;
+
+function saveCategoriesCache(data) {
+  try {
+    sessionStorage.setItem(
+      CATEGORIES_CACHE_KEY,
+      JSON.stringify({ ...data, _ts: Date.now() })
+    );
+  } catch { /* quota exceeded 등 무시 */ }
+}
+
+function loadCategoriesCache() {
+  try {
+    const raw = sessionStorage.getItem(CATEGORIES_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed._ts > CATEGORIES_CACHE_TTL) {
+      sessionStorage.removeItem(CATEGORIES_CACHE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch { return null; }
+}
+
 /**
  * Custom hook that manages category loading and lazy-loading for the HomePage.
  *
@@ -15,15 +42,27 @@ const CATEGORIES_BATCH_SIZE = 5;
  * @returns {Object} Category data, loading states, and refs
  */
 export function useHomeCategories(currentLocation) {
-  const [fixedCategories, setFixedCategories] = useState(() => getTimeBasedSortedCategories());
-  const [mbtiRow, setMbtiRow] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [categoriesPlaces, setCategoriesPlaces] = useState({});
-  const [loadedCategoryCount, setLoadedCategoryCount] = useState(INITIAL_CATEGORIES_COUNT);
+  // 캐시 복원 — 뒤로가기·재마운트 시 즉시 렌더, 첫 진입 이후 빠른 복귀
+  const cachedRef = useRef(loadCategoriesCache());
+  const cached = cachedRef.current;
+  const hasCachedCategories = !!(cached && cached.categories && cached.categories.length > 0);
+
+  const [fixedCategories, setFixedCategories] = useState(() =>
+    cached?.fixedCategories || getTimeBasedSortedCategories()
+  );
+  const [mbtiRow, setMbtiRow] = useState(cached?.mbtiRow || null);
+  const [categories, setCategories] = useState(cached?.categories || []);
+  const [categoriesPlaces, setCategoriesPlaces] = useState(cached?.categoriesPlaces || {});
+  const [loadedCategoryCount, setLoadedCategoryCount] = useState(
+    cached?.loadedCategoryCount || INITIAL_CATEGORIES_COUNT
+  );
   const [isLoadingMoreCategories, setIsLoadingMoreCategories] = useState(false);
   const categoryLoaderRef = useRef(null);
 
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  // 캐시가 있으면 로딩 상태 false로 시작
+  const [categoriesLoading, setCategoriesLoading] = useState(!hasCachedCategories);
+  // 초기 카테고리를 이번 마운트에서 이미 로드했는지 추적 (캐시 적중 시 재fetch 방지)
+  const initialCategoriesLoadedRef = useRef(hasCachedCategories);
 
   // Load a single category's places
   const loadCategoryPlaces = async (category, latitude, longitude) => {
@@ -51,6 +90,8 @@ export function useHomeCategories(currentLocation) {
             image: place.imageUrl || place.image,
             images: place.images || [],
             isBookmarked: place.isBookmarked || false,
+            // 카테고리 행의 key를 주입하여 이미지 폴백이 올바른 기본 이미지를 쓰도록 함
+            category: place.category || place.type || category.key,
           });
         });
 
@@ -132,6 +173,9 @@ export function useHomeCategories(currentLocation) {
 
     const loadInitialCategories = async () => {
       if (!currentLocation || !isMounted) return;
+      // 캐시 적중 시 초기 fetch 스킵 (이미 state에 주입됨)
+      if (initialCategoriesLoadedRef.current) return;
+      initialCategoriesLoadedRef.current = true;
 
       try {
         console.log('Loading initial categories for location:', currentLocation);
@@ -285,6 +329,18 @@ export function useHomeCategories(currentLocation) {
       observer.disconnect();
     };
   }, [currentLocation, loadedCategoryCount, isLoadingMoreCategories, fixedCategories, categoriesPlaces]);
+
+  // 캐시 자동 저장
+  useEffect(() => {
+    if (!categories.length) return;
+    saveCategoriesCache({
+      fixedCategories,
+      mbtiRow,
+      categories,
+      categoriesPlaces,
+      loadedCategoryCount,
+    });
+  }, [fixedCategories, mbtiRow, categories, categoriesPlaces, loadedCategoryCount]);
 
   return {
     fixedCategories,
