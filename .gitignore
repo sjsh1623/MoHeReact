@@ -30,3 +30,4 @@ dist-ssr
 ios/
 android/
 .capacitor
+src/assets/image/_backup_*/
