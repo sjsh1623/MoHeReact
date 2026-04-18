@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import styles from '@/styles/components/ui/modals/search-modal.module.css';
 import { unifiedSearchService } from '@/services/apiService';
 import { buildImageUrl } from '@/utils/image';
+import { getDefaultPlaceImage } from '@/utils/defaultPlaceImage';
 import { useGeolocation } from '@/hooks/useGeolocation';
 
 export default function SearchModal({ isOpen, onClose }) {
@@ -220,16 +221,19 @@ export default function SearchModal({ isOpen, onClose }) {
                       onClick={() => handlePlaceClick(place)}
                     >
                       <div className={styles.resultThumb}>
-                        {place.imageUrl || place.image ? (
-                          <img src={buildImageUrl(place.imageUrl || place.image)} alt="" />
-                        ) : (
-                          <div className={styles.thumbPlaceholder}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                              <path d="M21 10C21 17 12 23 12 23C12 23 3 17 3 10C3 5 7 1 12 1C17 1 21 5 21 10Z" stroke="#CCC" strokeWidth="1.5"/>
-                              <circle cx="12" cy="10" r="3" stroke="#CCC" strokeWidth="1.5"/>
-                            </svg>
-                          </div>
-                        )}
+                        {(() => {
+                          const fallback = getDefaultPlaceImage(place.category || place.type);
+                          const src = buildImageUrl(place.imageUrl || place.image) || fallback;
+                          return (
+                            <img
+                              src={src}
+                              alt=""
+                              loading="lazy"
+                              decoding="async"
+                              onError={(e) => { if (e.target.src !== fallback) e.target.src = fallback; }}
+                            />
+                          );
+                        })()}
                       </div>
                       <div className={styles.resultInfo}>
                         <span className={styles.resultName}>{place.name || place.title}</span>

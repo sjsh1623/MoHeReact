@@ -517,20 +517,21 @@ export default function PlaceDetailPage({ place = null }) {
           className={styles.imageSlider}
           onScroll={handleImageSliderScroll}
         >
-          {images.map((imgSrc, i) => (
-            <div key={i} className={styles.imageSlide}>
-              <img
-                src={imgSrc}
-                alt={`${placeData.name || placeData.title} ${i + 1}`}
-                className={styles.heroImage}
-                style={{ opacity: heroImageOpacity }}
-                draggable={false}
-                onError={(e) => {
-                  e.target.style.background = '#ccc';
-                }}
-              />
-            </div>
-          ))}
+          {images.map((imgSrc, i) => {
+            const fallback = getDefaultPlaceImage(placeData.category || placeData.type);
+            return (
+              <div key={i} className={styles.imageSlide}>
+                <img
+                  src={imgSrc}
+                  alt={`${placeData.name || placeData.title} ${i + 1}`}
+                  className={styles.heroImage}
+                  style={{ opacity: heroImageOpacity }}
+                  draggable={false}
+                  onError={(e) => { if (e.target.src !== fallback) e.target.src = fallback; }}
+                />
+              </div>
+            );
+          })}
         </div>
 
         {/* White overlay - fades in as you scroll */}
