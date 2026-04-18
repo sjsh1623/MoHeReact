@@ -6,10 +6,12 @@ export default function BookmarkPlaceCard({ name, location, image, rating, onCli
   return (
     <div className={styles.card} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
       <div className={styles.imageContainer}>
-        <img 
-          src={buildImageUrl(image) || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=176&h=159&fit=crop&crop=center'} 
-          alt={name} 
+        <img
+          src={buildImageUrl(image) || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=176&h=159&fit=crop&crop=center'}
+          alt={name}
           className={styles.image}
+          loading="lazy"
+          decoding="async"
         />
       </div>
       

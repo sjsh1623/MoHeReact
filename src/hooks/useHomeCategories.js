@@ -5,7 +5,7 @@ import { formatPlaceAddress } from '@/utils/addressUtils';
 import { normalizePlaceImages } from '@/utils/image';
 import { getTimeBasedSortedCategories } from '@/constants/categoryData';
 
-const INITIAL_CATEGORIES_COUNT = 10;
+const INITIAL_CATEGORIES_COUNT = 5;
 const CATEGORIES_BATCH_SIZE = 5;
 
 /**

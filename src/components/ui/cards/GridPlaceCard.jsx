@@ -46,11 +46,13 @@ export default function GridPlaceCard({
             <div className={styles.placeholderText}>이미지를 불러올 수 없습니다</div>
           </div>
         ) : (
-          <img 
-            src={buildImageUrl(image) || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=176&h=159&fit=crop&crop=center'} 
+          <img
+            src={buildImageUrl(image) || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=176&h=159&fit=crop&crop=center'}
             alt={title}
             className={styles.image}
             onError={handleImageError}
+            loading="lazy"
+            decoding="async"
           />
         )}
         <button

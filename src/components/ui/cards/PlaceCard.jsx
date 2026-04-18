@@ -80,11 +80,13 @@ export default function PlaceCard({
             <div className={styles.placeholderText}>이미지를 불러올 수 없습니다</div>
           </div>
         ) : (
-          <img 
+          <img
             src={displayedImage}
             alt={title}
             className={styles.image}
             onError={handleImageError}
+            loading="lazy"
+            decoding="async"
           />
         )}
         <button
