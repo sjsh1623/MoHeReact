@@ -310,6 +310,15 @@ export default function AnimatedRoutes() {
   const showTransientLayer = !isAuthRoute && !isPersistent;
   const shellPaddingBottom = 'var(--app-shell-safe-bottom, 0px)';
 
+  // Base style for all layers. Compositor hints (willChange/translate3d/
+  // backfaceVisibility) were previously applied here to every layer, but
+  // that forced the persistent HomePage layer into its own GPU layer with
+  // 60+ sub-layered cards. On iOS WKWebView, flipping pointer-events on
+  // that layer during POP back from /place/:id triggered a full layer-tree
+  // re-evaluation — observed as 3–4s touch block on iPhone 16 Pro Max.
+  // Compositor hints are now applied only to the transient slide layer
+  // (below, via transientLayerStyle) where the sliding transform actually
+  // needs GPU promotion.
   const baseLayerStyle = {
     position: 'absolute',
     inset: 0,
@@ -317,13 +326,17 @@ export default function AnimatedRoutes() {
     minHeight: '100%',
     background: '#ffffff',
     overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
+    paddingBottom: shellPaddingBottom,
+  };
+
+  const transientLayerStyle = {
+    ...baseLayerStyle,
     willChange: 'transform',
     backfaceVisibility: 'hidden',
     WebkitBackfaceVisibility: 'hidden',
     WebkitTransform: 'translate3d(0,0,0)',
     transform: 'translate3d(0,0,0)',
-    WebkitOverflowScrolling: 'touch',
-    paddingBottom: shellPaddingBottom,
   };
 
   return (
@@ -416,7 +429,7 @@ export default function AnimatedRoutes() {
             data-page-container
             data-route={location.pathname}
             style={{
-              ...baseLayerStyle,
+              ...transientLayerStyle,
               x: isDragging ? dragX : 0,
             }}
             ref={containerRef}
@@ -465,7 +478,7 @@ export default function AnimatedRoutes() {
             data-page-container
             data-route={location.pathname}
             style={{
-              ...baseLayerStyle,
+              ...transientLayerStyle,
               x: isDragging ? dragX : 0,
             }}
           >
