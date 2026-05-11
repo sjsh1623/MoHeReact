@@ -7,11 +7,109 @@
 	respond "Access denied - please use domain name" 403
 }
 
+# TODO: when www.mohe.today DNS record is added at Cloudflare, uncomment
+# this block to 301 the www variant to apex. Until then the Caddy auto-https
+# challenge would loop forever and spam logs.
+#
+# www.mohe.today {
+# 	redir https://mohe.today{uri} permanent
+# }
+
 # Handle mohe.today domain with HTTPS
 mohe.today {
 	# Health check endpoint
 	handle /health {
 		respond "OK" 200
+	}
+
+	# Andrew Studio is the apex (mohe.today/) — see catch-all at the
+	# bottom. Withy moved under /withy/* on 2026-05-11 (was apex from
+	# 2026-05 to that day) so each Andrew Studio product gets its own
+	# path-scoped homepage / privacy URL for Google OAuth verification.
+
+	# Withy API. Withy SPA + new mobile build use this.
+	handle_path /withy/api/* {
+		reverse_proxy withy-spring:8080
+	}
+
+	# Legacy /tossa/api/* — kept as an alias so shipped mobile builds
+	# whose API_BASE was baked at /tossa/api keep resolving. Will be
+	# retired once the install base has rolled forward to a build that
+	# uses /withy/api.
+	handle_path /tossa/api/* {
+		reverse_proxy withy-spring:8080
+	}
+
+	# Routinee — separate Spring + nginx pair, mounted under /routinee.
+	# Containers stay named ht-* (legacy from the HabitTracker codename, no
+	# need to rename runtime infra just because the public URL changed).
+	# /routinee/api/* is stripped before reaching ht-spring so the
+	# controller matchers stay free of the public prefix; /routinee/* keeps
+	# the prefix so the SPA's hashed assets at /routinee/assets/... resolve
+	# in nginx (built with Vite `base: '/routinee/'`, see web/vite.config.ts).
+	#
+	# Legacy /ht/* paths 301 to /routinee/* so old TestFlight builds and
+	# bookmarked links keep working through one App Store update cycle.
+	handle_path /routinee/api/* {
+		reverse_proxy ht-spring:8080
+	}
+	@routinee_root path /routinee
+	redir @routinee_root /routinee/ permanent
+	handle /routinee/* {
+		reverse_proxy ht-web:80
+	}
+	# Legacy /ht/* — 308 redirect to /routinee/* (preserves POST so old
+	# TestFlight builds' /ht/api/auth/login keeps working; iOS
+	# NSURLSession downgrades POST→GET on 301 but follows 308 verbatim).
+	# In Caddy's default directive order `redir` runs before `handle_path`,
+	# so a single redirect here covers both /ht/api/* and /ht/* SPA paths.
+	@legacy_ht path_regexp legacy_ht ^/ht(/.*)?$
+	redir @legacy_ht /routinee{re.legacy_ht.1} 308
+
+	# Withy SPA — Vite is built with `base: '/withy/'` and React Router
+	# with `basename="/withy"`, so URLs the user sees stay path-prefixed.
+	# `handle_path` strips /withy before proxying to withy-web's nginx
+	# (which serves index.html on the SPA fallback). The asset URLs in
+	# index.html are absolute (`/withy/assets/...`), so they re-enter
+	# this handler and resolve cleanly.
+	@withy_root path /withy
+	redir @withy_root /withy/ permanent
+	handle_path /withy/* {
+		reverse_proxy withy-web:80
+
+		# Same caching policy as the previous apex catch-all — HTML must
+		# never cache (deploys flip immediately) but Vite's hashed
+		# assets are immutable.
+		header *.html Cache-Control "no-cache, no-store, must-revalidate"
+		header *.js   Cache-Control "public, max-age=31536000, immutable"
+		header *.css  Cache-Control "public, max-age=31536000, immutable"
+	}
+
+	# Legacy /tossa/* — 308 redirects to /withy/* so shipped mobile
+	# builds (whose webUrl is still mohe.today/tossa/home) and any
+	# bookmarked /tossa/... URLs land on the right Withy route. 308
+	# preserves POST verbatim, matters because some shipped mobile
+	# bundles call /tossa/api/auth/login through Linking (rare but
+	# possible) and iOS NSURLSession downgrades POST→GET on 301.
+	# /tossa/api/* is excluded — it's already proxied above.
+	@tossa_root path /tossa
+	redir @tossa_root /withy/ permanent
+	@tossa_legacy {
+		path_regexp tossa_legacy ^/tossa/(.*)$
+		not path /tossa/api/*
+	}
+	redir @tossa_legacy "/withy/{re.tossa_legacy.1}" 308
+
+	# Mohe entry alias — accessing /mohe or /mohe/* lands on the Mohe React app.
+	# We strip the prefix so the upstream still serves its existing routes from /.
+	# Internal links in the React app go to root paths, which fall through to the
+	# catch-all handler below — so navigation continues to work without a basename.
+	@mohe_root path /mohe
+	handle @mohe_root {
+		redir /mohe/ permanent
+	}
+	handle_path /mohe/* {
+		reverse_proxy mohe-react-app:80
 	}
 
 	# API backend - proxy to Spring Boot
@@ -24,25 +122,10 @@ mohe.today {
 		reverse_proxy mohe-batch:8081
 	}
 
-	# Store API — proxy to Spring Boot (before /store* catch-all)
-	handle /store/api/* {
-		reverse_proxy store-spring:8080
-	}
-
-	# Store Admin — proxy to store-admin React app (before /admin/* catch-all)
-	handle_path /admin/store* {
-		reverse_proxy store-admin:80
-	}
-
 	# Admin Dashboard - proxy to MoheAdmin React app
 	@admin path /admin /admin/*
 	handle @admin {
 		reverse_proxy mohe-admin-app:80
-	}
-
-	# Store (LayerLab) - proxy to store-user React app
-	handle_path /store* {
-		reverse_proxy store-user:80
 	}
 
 	# Rewrite /images/* to /image/* for ImageProcessor compatibility
@@ -80,15 +163,18 @@ mohe.today {
 		header @image_routes Vary "Accept, Accept-Encoding"
 	}
 
-	# Web application - proxy to React production build
+	# Apex catch-all → Andrew Studio landing (mohe.today/). Tiny static
+	# nginx container that serves a single index.html with two product
+	# cards (Withy + Routinee). Unknown paths under apex return 404 from
+	# the studio nginx (per its own location / { return 404; }), so a
+	# typo'd URL surfaces as a clean 404 instead of getting silently
+	# served the studio page.
 	handle {
-		reverse_proxy mohe-react-app:80
+		reverse_proxy andrew-studio:80
 
-		# HTML은 캐시 안 함 (배포 시 즉시 반영)
 		header *.html Cache-Control "no-cache, no-store, must-revalidate"
-		# JS/CSS는 해시 기반 캐시 (변경 시 파일명 변경됨)
-		header *.js Cache-Control "public, max-age=31536000, immutable"
-		header *.css Cache-Control "public, max-age=31536000, immutable"
+		header *.js   Cache-Control "public, max-age=31536000, immutable"
+		header *.css  Cache-Control "public, max-age=31536000, immutable"
 	}
 
 	# Security headers
@@ -100,5 +186,110 @@ mohe.today {
 	}
 
 	# Enable gzip compression
+	encode gzip
+}
+
+# withy development environment. Mirrors the prod block above but routes to
+# the *-dev container set running off docker-compose.dev.yml. Both /withy/api
+# and the legacy /tossa/api prefix proxy to withy-spring-dev so a single SPA
+# build can flip between dev/prod by base-URL only.
+dev.mohe.today {
+	handle /health {
+		respond "OK" 200
+	}
+
+	handle_path /withy/api/* {
+		reverse_proxy withy-spring-dev:8080
+	}
+
+	handle_path /tossa/api/* {
+		reverse_proxy withy-spring-dev:8080
+	}
+
+	# Withy SPA at /withy/* (mirrors prod). dev's andrew-studio is the
+	# same image — host network sees it through the proxy_network too.
+	@withy_root_dev path /withy
+	redir @withy_root_dev /withy/ permanent
+	handle_path /withy/* {
+		reverse_proxy withy-web-dev:80
+		header *.html Cache-Control "no-cache, no-store, must-revalidate"
+		header *.js   Cache-Control "public, max-age=31536000, immutable"
+		header *.css  Cache-Control "public, max-age=31536000, immutable"
+	}
+
+	# Legacy /tossa → /withy (same policy as prod).
+	@tossa_root_dev path /tossa
+	redir @tossa_root_dev /withy/ permanent
+	@tossa_legacy_dev {
+		path_regexp tossa_legacy_dev ^/tossa/(.*)$
+		not path /tossa/api/*
+	}
+	redir @tossa_legacy_dev "/withy/{re.tossa_legacy_dev.1}" 308
+
+	# Apex on dev → studio landing (same container as prod).
+	handle {
+		reverse_proxy andrew-studio:80
+		header *.html Cache-Control "no-cache, no-store, must-revalidate"
+	}
+
+	# Discourage indexing of the dev surface so reviewers / search engines
+	# stay on prod. (Cloudflare-managed robots.txt still applies; this is
+	# a belt-and-suspenders header.)
+	header X-Robots-Tag "noindex, nofollow"
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Frame-Options "SAMEORIGIN"
+		X-Content-Type-Options "nosniff"
+	}
+
+	encode gzip
+}
+
+# weverse — 별도 사이트로 분리 운영. mohe.today / dev.mohe.today 의 라우팅은
+# 일체 변경하지 않는다.
+#
+# 트래픽 흐름:
+#   end-user → weverse.mohe.today (Cloudflare DNS)
+#           → AWS CloudFront
+#           → origin-weverse.mohe.today (DNS-only A → 홈 Caddy)
+#
+# 그래서 Caddy 가 받는 SNI 는 origin-weverse.mohe.today 한 개. CloudFront 는 origin
+# protocol HTTPS only 로 호출하며, Host header 는 origin-weverse.mohe.today 로 들어옴.
+#
+# Path 기반 라우팅 (단일 도메인 안에서 SPA + API 통합):
+#   /v1/*  → 백엔드 (host 18080)  — Spring Boot
+#   그 외  → 프론트엔드 (host 18081) — React SPA (nginx)
+#
+# Caddy 가 도커 컨테이너에서 실행 중이므로 호스트 포트 접근에 host.docker.internal 사용.
+# 백엔드/프론트엔드 컨테이너는 각각 127.0.0.1:18080, 127.0.0.1:18081 로 호스트 바인딩.
+origin-weverse.mohe.today {
+	handle /health {
+		respond "OK" 200
+	}
+
+	@weverse_api path /v1/*
+	handle @weverse_api {
+		reverse_proxy host.docker.internal:18080 {
+			fail_duration 30s
+			max_fails 3
+			health_uri /v1/timezones
+			health_interval 30s
+			health_timeout 3s
+		}
+	}
+
+	handle {
+		reverse_proxy host.docker.internal:18081
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
 	encode gzip
 }

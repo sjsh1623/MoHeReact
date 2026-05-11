@@ -1,0 +1,15 @@
+services:
+  andrew-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: andrew-studio:latest
+    container_name: andrew-studio
+    restart: unless-stopped
+    networks:
+      - proxy_network
+
+networks:
+  proxy_network:
+    external: true
+    name: proxy_network
